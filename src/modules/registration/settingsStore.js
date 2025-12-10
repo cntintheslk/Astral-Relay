@@ -30,6 +30,16 @@ function getSettings(guildId) {
         FROM registration_settings
         WHERE guild_id = ?
     `).get(guildId);
+
+        return row || {
+        approver_roles: "[]",
+        role_r1: null,
+        role_r2: null,
+        role_r3: null,
+        role_r4: null,
+        role_r5: null,
+        registration_log_channel_id: null
+        };
 }
 
 /**

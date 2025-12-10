@@ -105,7 +105,14 @@ module.exports = {
             sub
                 .setName("config-show")
                 .setDescription("Show the current registration configuration")
+        )
+
+        .addChannelOption(opt =>
+            opt.setName("log_channel")
+            .setDescription("Channel where registration logs will be sent.")
+            .addChannelTypes(0) // 0 = text channel
         ),
+
 
     // ----------------------------------------------------
     // EXECUTE COMMAND
@@ -292,6 +299,20 @@ module.exports = {
                 );
 
             return interaction.reply({ embeds: [embed], flags: 64 });
+        }
+        
+        if (options.getChannel("log_channel")) {
+            const ch = options.getChannel("log_channel");
+            db.prepare(`
+                UPDATE guild_settings
+                SET registration_log_channel_id = ?
+                WHERE guild_id = ?
+            `).run(ch.id, guildId);
+
+            return interaction.reply({
+                content: `📑 Registration logs will now be sent to <#${ch.id}>.`,
+                ephemeral: true
+            });
         }
 
         // ---- fallback (should never run) ----
