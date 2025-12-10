@@ -1,29 +1,35 @@
 // src/modules/_schema/index.js
+
 const fs = require("fs");
 const path = require("path");
+const { db } = require("../../core/database");
+const logger = require("../../core/logger");
+const { log } = require("../../core/discordLogger");
 
-// Simple schema loader: runs all .sql files in this folder against the DB
-function loadSchema(db) {
-  const schemaDir = __dirname;
+module.exports = {
+    loadSchemas() {
+        const schemaDir = __dirname;
 
-  const files = fs
-    .readdirSync(schemaDir)
-    .filter((f) => f.endsWith(".sql"))
-    .sort(); // alphabetical so system.sql runs first
+        const files = fs.readdirSync(schemaDir).filter((f) => f.endsWith(".sql"));
 
-  for (const file of files) {
-    const fullPath = path.join(schemaDir, file);
-    const sql = fs.readFileSync(fullPath, "utf8");
+        logger.info(`Loading ${files.length} SQL schema files...`);
 
-    if (!sql.trim()) continue;
+        for (const file of files) {
+            try {
+                const filePath = path.join(schemaDir, file);
+                const sql = fs.readFileSync(filePath, "utf8");
 
-    try {
-      db.exec(sql);
-    } catch (err) {
-      console.error(`[SCHEMA] Failed to apply ${file}:`, err);
-      throw err;
-    }
-  }
-}
+                db.exec(sql);
 
-module.exports = loadSchema;
+                logger.success(`Applied schema: ${file}`);
+            } catch (err) {
+                logger.error(`Failed to apply schema ${file}: ${err.message}`);
+                log(
+                    "ERROR",
+                    "Schema Load Error",
+                    `File: **${file}**\n\`\`\`${err.message}\`\`\``
+                );
+            }
+        }
+    },
+};

@@ -1,11 +1,12 @@
 // index.js
-
 const createClient = require("./src/core/client");
 const loadEvents = require("./src/handlers/events");
 const logger = require("./src/core/logger");
 require("./src/core/database");
+const { loadSchemas } = require("./src/modules/_schema");
 
 const config = require("./src/core/config");
+
 
 // Check for missing bot token
 if (!config.token) {
@@ -34,3 +35,8 @@ client.login(config.token).catch((err) => {
   logger.error("Failed to login:");
   console.error(err);
 });
+
+// Schema Loader
+
+const { loadSchemas } = require("./src/modules/_schema/index");
+loadSchemas();

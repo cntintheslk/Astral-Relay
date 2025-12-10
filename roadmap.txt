@@ -1,0 +1,130 @@
+ASTRAL RELAY V2.0.0 — DEVELOPMENT ROADMAP
+=========================================
+
+STAGE A — STABLE CORE FOUNDATION
+--------------------------------
+
+A1. Project Bootstrap  (COMPLETED)
+- Clean folder structure
+- No slash commands yet
+- Clean index.js
+- Modular event loader
+- Error handlers
+- Config system
+- Render-compatible runtime
+- Node 20 enforcement
+- Git hygiene
+
+A2. Logging System  (COMPLETED)
+- Console logging
+- Discord logging
+- Uniform embed styling
+- Bot avatar added to all logs
+- Timestamped, consistent footers
+- Strict internal system logs only
+
+A3. Database Foundation  (NEXT)
+- Load schemas on boot
+- Automatic table creation
+- Database error logging
+- Query helper functions
+- Migration-ready structure
+- Ensure DB stability before features
+
+-----------------------------------------
+
+STAGE B — INTERNAL FRAMEWORK
+-----------------------------
+
+B1. Module Loader System
+- Each module has its own folder
+- init() and shutdown() lifecycle
+- Central registry
+- Scalable, clean architecture
+
+B2. Config Validation
+- Verify all required environment variables
+- Validate channel IDs and role IDs
+- Log invalid configuration to Discord
+
+B3. System Health Monitor
+- Heartbeat logging to Discord
+- API outage detection
+- Rate-limit detection
+- DB lockup detection
+
+-----------------------------------------
+
+STAGE C — CORE FEATURES
+------------------------
+
+C1. Registration System (R1–R5)
+- Approval workflow
+- Logging and tracking
+- Auto-role assignment
+- Rejections
+- DB integration
+
+C2. LOA System
+- Slash commands
+- LOA creation
+- LOA board updates
+- Expiry timers
+- Reminders
+- Logging
+
+C3. System Module
+- Ping command
+- Uptime command
+- Version command
+- Reload module
+- Health report
+
+-----------------------------------------
+
+STAGE D — OPTIONAL EXPANSIONS
+------------------------------
+
+D1. Dashboard (Optional)
+- Web panel for staff
+- View logs, LOAs, registrations
+
+D2. Multi-Guild Support
+- Expand bot to multiple servers
+
+D3. Webhook-Based Server Logs
+- Advanced logging for system/dev team
+
+D4. Scheduled Tasks
+- Daily routines
+- LOA expiry handling
+- Automatic cleanup
+
+-----------------------------------------
+
+STAGE E — PRODUCTION HARDENING
+-------------------------------
+
+E1. Stress Testing
+- Restart recovery testing
+- Discord rate-limit tests
+- Database corruption simulation
+
+E2. Error Injection Testing
+- Simulate failures to verify resilience
+
+E3. Render Scaling Adjustments
+- Memory optimization
+- Process tuning
+
+-----------------------------------------
+
+CURRENT POSITION
+----------------
+
+Completed:
+- A1 Project bootstrap
+- A2 Logging system
+
+Next Step:
+- A3 Database Foundation

@@ -1,1 +1,7 @@
 node_modules/
+
+# SQLite DB files
+data/
+*.sqlite
+*.db
+*.sqlite-journal
