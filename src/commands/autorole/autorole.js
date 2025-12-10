@@ -1,29 +1,54 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
-const { setAutoRole, clearAutoRole, getAutoRole } = require("../../modules/autorole/autoroleStore");
-const { createSuccessEmbed, createInfoEmbed, createErrorEmbed } = require("../../core/embedStyles");
+const {
+    SlashCommandBuilder,
+    PermissionFlagsBits
+} = require("discord.js");
+
+const {
+    getAutoRoles,
+    addAutoRole,
+    removeAutoRole,
+    clearAutoRoles
+} = require("../../modules/autorole/autoroleStore");
+
+const {
+    createSuccessEmbed,
+    createInfoEmbed,
+    createErrorEmbed
+} = require("../../core/embedStyles");
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("autorole")
-        .setDescription("Configure autorole settings")
+        .setDescription("Manage unlimited autoroles")
 
         .addSubcommand(sub =>
-            sub.setName("set")
-               .setDescription("Set the autorole for new members")
-               .addRoleOption(opt => 
+            sub.setName("add")
+               .setDescription("Add a role to the autorole list")
+               .addRoleOption(opt =>
                     opt.setName("role")
                        .setDescription("Role to assign automatically")
-                       .setRequired(true))
+                       .setRequired(true)
+               )
+        )
+
+        .addSubcommand(sub =>
+            sub.setName("remove")
+               .setDescription("Remove one autorole")
+               .addRoleOption(opt =>
+                    opt.setName("role")
+                       .setDescription("Role to remove")
+                       .setRequired(true)
+               )
         )
 
         .addSubcommand(sub =>
             sub.setName("clear")
-               .setDescription("Disable autorole")
+               .setDescription("Clear ALL autoroles")
         )
 
         .addSubcommand(sub =>
             sub.setName("show")
-               .setDescription("Show current autorole configuration")
+               .setDescription("Show all autoroles")
         ),
 
     async execute(interaction) {
@@ -37,36 +62,49 @@ module.exports = {
         const guildId = interaction.guild.id;
         const sub = interaction.options.getSubcommand();
 
-        // SET AUTOROLE
-        if (sub === "set") {
+        // ADD
+        if (sub === "add") {
             const role = interaction.options.getRole("role");
-            setAutoRole(guildId, role.id);
+            addAutoRole(guildId, role.id);
 
             return interaction.reply({
-                embeds: [createSuccessEmbed("Autorole Set", `New members will receive <@&${role.id}> automatically.`)],
+                embeds: [createSuccessEmbed("Autorole Added", `<@&${role.id}> will now be auto-assigned.`)],
                 ephemeral: true
             });
         }
 
-        // CLEAR AUTOROLE
+        // REMOVE
+        if (sub === "remove") {
+            const role = interaction.options.getRole("role");
+            removeAutoRole(guildId, role.id);
+
+            return interaction.reply({
+                embeds: [createSuccessEmbed("Autorole Removed", `<@&${role.id}> will no longer be auto-assigned.`)],
+                ephemeral: true
+            });
+        }
+
+        // CLEAR
         if (sub === "clear") {
-            clearAutoRole(guildId);
+            clearAutoRoles(guildId);
 
             return interaction.reply({
-                embeds: [createSuccessEmbed("Autorole Disabled", "New members will no longer receive an autorole.")],
+                embeds: [createSuccessEmbed("Autoroles Cleared", "All autoroles have been removed.")],
                 ephemeral: true
             });
         }
 
-        // SHOW AUTOROLE
+        // SHOW
         if (sub === "show") {
-            const roleId = getAutoRole(guildId);
+            const roles = getAutoRoles(guildId);
 
             return interaction.reply({
                 embeds: [
                     createInfoEmbed(
-                        "Autorole Configuration",
-                        roleId ? `Current autorole: <@&${roleId}>` : "Autorole is currently disabled."
+                        "Configured Autoroles",
+                        roles.length
+                            ? roles.map(id => `• <@&${id}>`).join("\n")
+                            : "No autoroles configured."
                     )
                 ],
                 ephemeral: true
