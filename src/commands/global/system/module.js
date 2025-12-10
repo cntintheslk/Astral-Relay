@@ -1,16 +1,16 @@
 const { SlashCommandBuilder } = require("discord.js");
-const reply = require("../../core/reply");
+const reply = require("../../../core/reply");
 
 const {
     listModules,
     loadModule,
     unloadModule,
     reloadModule,
-} = require("../../core/moduleRegistry");
+} = require("../../../core/moduleRegistry");
 
-const config = require("../../core/config");
-const logger = require("../../core/logger");
-const { log } = require("../../core/discordLogger");
+const config = require("../../../core/config");
+const logger = require("../../../core/logger");
+const { log } = require("../../../core/discordLogger");
 const path = require("path");
 
 module.exports = {

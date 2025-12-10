@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
-const { createInfoEmbed, createSuccessEmbed, createErrorEmbed } = require("../../core/embedStyles");
-const config = require("../../core/config");
+const { createInfoEmbed, createSuccessEmbed, createErrorEmbed } = require("../../../core/embedStyles");
+const config = require("../../../core/config");
 const BOT_LOGO =
     "https://cdn.discordapp.com/icons/1444904297358688320/a_d05db8a486d3c803566d67525914c901.gif?size=256";
 module.exports = {

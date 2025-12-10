@@ -8,13 +8,13 @@ const {
     addAutoRole,
     removeAutoRole,
     clearAutoRoles
-} = require("../../modules/autorole/autoroleStore");
+} = require("../../../modules/autorole/autoroleStore");
 
 const {
     createSuccessEmbed,
     createInfoEmbed,
     createErrorEmbed
-} = require("../../core/embedStyles");
+} = require("../../../core/embedStyles");
 
 module.exports = {
     data: new SlashCommandBuilder()
