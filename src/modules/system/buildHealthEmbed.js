@@ -1,7 +1,7 @@
 // modules/system/buildHealthEmbed.js
-
+const path = require("path")
 const { EmbedBuilder } = require("discord.js");
-const healthImage = Path.join(__dirname, "../../media/Astral Relay - Health System Embed Image.png")
+const healthImage = path.join(__dirname, "../../media/Astral Relay - Health System Embed Image.png")
 function formatUptime(seconds) {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
