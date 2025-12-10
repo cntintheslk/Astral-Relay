@@ -27,7 +27,7 @@ async function deployCommands(client) {
         log(
             "SUCCESS",
             "Slash Commands Deployed",
-            `**${commands.length}** commands deployed to the globally\n` +
+            `**${commands.length}** commands deployed globally\n` +
             `**Commands:**\n${commandNames}`
         );
 

@@ -4,6 +4,7 @@ const { REST, Routes } = require("discord.js");
 const TOKEN = process.env.BOT_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 const DEV_GUILD_ID = process.env.DEV_GUILD_ID;
+const GHST_GUILD_ID = process.env.GHST_GUILD_ID;
 
 const rest = new REST({ version: "10" }).setToken(TOKEN);
 
@@ -11,7 +12,7 @@ const rest = new REST({ version: "10" }).setToken(TOKEN);
     try {
         console.log("Clearing GUILD commands...");
         await rest.put(
-            Routes.applicationGuildCommands(CLIENT_ID, DEV_GUILD_ID),
+            Routes.applicationGuildCommands(CLIENT_ID, DEV_GUILD_ID, GHST_GUILD_ID),
             { body: [] }
         );
         console.log("✓ Guild commands cleared.");
