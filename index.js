@@ -37,14 +37,6 @@ process.on("uncaughtException", (err) => {
   logger.error("Uncaught Exception:");
   console.error(err);
 });
-const githubWebhook = require("./src/webhooks/github");
-
-app.use("/webhooks", githubWebhook(client));
-
-app.listen(PORT, () => {
-    console.log(`[WEBHOOK] Listening on port ${PORT}`);
-});
-
 
 // Start bot
 client.login(config.token).catch((err) => {
@@ -77,5 +69,12 @@ app.listen(PORT, () => {
         "Web Server Started",
         `Webhook server running on **port ${PORT}**`
     );
+});
+const githubWebhook = require("./src/webhooks/github");
+
+app.use("/webhooks", githubWebhook(client));
+
+app.listen(PORT, () => {
+    console.log(`[WEBHOOK] Listening on port ${PORT}`);
 });
 
