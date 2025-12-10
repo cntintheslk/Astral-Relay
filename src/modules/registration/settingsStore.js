@@ -1,8 +1,5 @@
 const db = require("../../core/database");
 
-/**
- * Fetch registration settings for a guild.
- */
 function getSettings(guildId) {
     return db.prepare(`
         SELECT *
@@ -11,13 +8,14 @@ function getSettings(guildId) {
     `).get(guildId);
 }
 
-/**
- * Save all settings at once (internal use)
- */
 function saveSettings(guildId, settings) {
     const {
         role_r1, role_r2, role_r3, role_r4, role_r5,
-        require_approval_r4, require_approval_r5,
+        require_approval_r1,
+        require_approval_r2,
+        require_approval_r3,
+        require_approval_r4,
+        require_approval_r5,
         approver_roles
     } = settings;
 
@@ -25,31 +23,36 @@ function saveSettings(guildId, settings) {
         INSERT INTO registration_settings (
             guild_id,
             role_r1, role_r2, role_r3, role_r4, role_r5,
+            require_approval_r1, require_approval_r2, require_approval_r3,
             require_approval_r4, require_approval_r5,
             approver_roles
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(guild_id)
         DO UPDATE SET
             role_r1 = excluded.role_r1,
-            role_r2 = excluded.role_r2,
+            role_r2 = excluded.role_r_r2,
             role_r3 = excluded.role_r3,
             role_r4 = excluded.role_r4,
             role_r5 = excluded.role_r5,
+            require_approval_r1 = excluded.require_approval_r1,
+            require_approval_r2 = excluded.require_approval_r2,
+            require_approval_r3 = excluded.require_approval_r3,
             require_approval_r4 = excluded.require_approval_r4,
             require_approval_r5 = excluded.require_approval_r5,
             approver_roles = excluded.approver_roles;
     `).run(
         guildId,
         role_r1, role_r2, role_r3, role_r4, role_r5,
-        require_approval_r4, require_approval_r5,
+        require_approval_r1,
+        require_approval_r2,
+        require_approval_r3,
+        require_approval_r4,
+        require_approval_r5,
         approver_roles
     );
 }
 
-/**
- * PUBLIC: Save R1–R5 role IDs
- */
 function setRegistrationRoles(guildId, roles) {
     const existing = getSettings(guildId) || {};
 
@@ -64,21 +67,21 @@ function setRegistrationRoles(guildId, roles) {
 }
 
 /**
- * PUBLIC: Save approval requirements for R4 + R5
+ * Set approval configuration for ANY rank (R1–R5)
  */
 function setApprovalConfig(guildId, config) {
     const existing = getSettings(guildId) || {};
 
     saveSettings(guildId, {
         ...existing,
-        require_approval_r4: config.r4 ?? existing.require_approval_r4 ?? 0,
-        require_approval_r5: config.r5 ?? existing.require_approval_r5 ?? 0,
+        require_approval_r1: config.R1 ?? existing.require_approval_r1 ?? 0,
+        require_approval_r2: config.R2 ?? existing.require_approval_r2 ?? 0,
+        require_approval_r3: config.R3 ?? existing.require_approval_r3 ?? 0,
+        require_approval_r4: config.R4 ?? existing.require_approval_r4 ?? 0,
+        require_approval_r5: config.R5 ?? existing.require_approval_r5 ?? 0,
     });
 }
 
-/**
- * PUBLIC: Store approver roles (array → JSON)
- */
 function setApproverRoles(guildId, approverRoles) {
     const existing = getSettings(guildId) || {};
 

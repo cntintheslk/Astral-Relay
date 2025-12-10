@@ -7,6 +7,9 @@ CREATE TABLE IF NOT EXISTS registration_settings (
     role_r3   TEXT,
     role_r4   TEXT,
     role_r5   TEXT,
+    require_approval_r1 INTEGER DEFAULT 1,
+    require_approval_r2 INTEGER DEFAULT 1,
+    require_approval_r3 INTEGER DEFAULT 1,
     require_approval_r4 INTEGER DEFAULT 1,
     require_approval_r5 INTEGER DEFAULT 1,
     approver_roles TEXT
