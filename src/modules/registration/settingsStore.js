@@ -1,7 +1,32 @@
 const db = require("../../core/database");
 
 function getRegistrationConfig(guildId) {
-    const row = getSettings(guildId) || {};
+    const row = db.prepare(`
+        SELECT *
+        FROM registration_settings
+        WHERE guild_id = ?
+    `).get(guildId);
+
+    // No config yet → return clean defaults
+    if (!row) {
+        return {
+            roles: {
+                R1: null,
+                R2: null,
+                R3: null,
+                R4: null,
+                R5: null,
+            },
+            approvalRequired: {
+                R1: false,
+                R2: false,
+                R3: false,
+                R4: false,
+                R5: false,
+            },
+            approverRoleIds: [],
+        };
+    }
 
     return {
         roles: {
@@ -23,6 +48,7 @@ function getRegistrationConfig(guildId) {
             : [],
     };
 }
+
 
 function getSettings(guildId) {
     return db.prepare(`
