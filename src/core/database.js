@@ -9,7 +9,7 @@ const fs = require("fs");
 const DB_PATH = new Database("/data/astral_relay.sqlite");
 if (!fs.existsSync("/data")) fs.mkdirSync("/data");
 
-const db = new sqlite3.Database(DB_PATH, (err) => {
+const db = new Database(DB_PATH, (err) => {
     if (err) {
         logger.error("Failed to open SQLite database:");
         console.error(err);
