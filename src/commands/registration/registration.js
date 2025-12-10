@@ -303,11 +303,22 @@ module.exports = {
         if (sub === "config-logchannel") {
             const ch = interaction.options.getChannel("channel");
 
-            db.prepare(`
-                UPDATE guild_settings
-                SET registration_log_channel_id = ?
-                WHERE guild_id = ?
-            `).run(ch.id, guildId);
+        const result = db.prepare(`
+            UPDATE registration_settings
+            SET registration_log_channel_id = ?
+            WHERE guild_id = ?
+        `).run(ch.id, guildId);
+
+        console.log("[LOGCHANNEL] UPDATE RESULT:", result);
+
+        const check = db.prepare(`
+            SELECT registration_log_channel_id
+            FROM registration_settings
+            WHERE guild_id = ?
+        `).get(guildId);
+
+        console.log("[LOGCHANNEL] VALUE NOW IN DB:", check);
+
 
             return interaction.reply({
                 embeds: [
