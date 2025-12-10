@@ -82,7 +82,7 @@ app.post("/webhooks/github", (req, res) => {
                 description: commits || "No commit messages.",
                 color: 0x5865f2,
                 timestamp: new Date(),
-                footer: { text: `Repo: ${payload.repository.full_name}` }
+                footer: { text: `Repo: ${payload.repository}` }
             }]
         });
     }
