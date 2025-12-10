@@ -1,43 +1,42 @@
 // src/modules/system/module.js
 
+const { startHealthJob } = require("./healthJob");
 const logger = require("../../core/logger");
 const { log } = require("../../core/discordLogger");
-const healthJob = require("./healthJob");
 
 module.exports = {
     /**
-     * Called automatically when the system module is loaded.
-     * Starts the health dashboard auto-update process.
+     * System module initializer
+     * Called automatically by moduleRegistry.loadModule()
      */
     async init(client) {
-        logger.info("[system] Initializing system module...");
-        log("INFO", "System Module Init", "System module initialization started.");
+        logger.info("[system] Initializing system module…");
 
         try {
-            healthJob.start(client);
+            // Start the auto-updating health monitor
+            await startHealthJob(client);
+
             logger.success("[system] Health monitor started.");
-            log("SUCCESS", "Health Monitor Active", "System health dashboard is now updating automatically.");
+            log("SUCCESS", "System Module", "Health monitor started successfully.");
+
         } catch (err) {
-            logger.error(`[system] Failed to start health monitor: ${err.message}`);
-            log("ERROR", "Health Monitor Error", `\`\`\`${err.message}\`\`\``);
+            logger.error("[system] Failed to start health monitor:");
+            console.error(err);
+
+            log(
+                "ERROR",
+                "System Module Error",
+                `Failed to start health monitor.\n\`\`\`${err.message}\`\`\``
+            );
         }
 
-        logger.success("[system] Module initialized.");
+        return true;
     },
 
     /**
-     * Called when unloading/reloading this module.
-     * Ensures the health job interval is stopped cleanly.
+     * Optional shutdown handler (future-proofing)
      */
-    async unload(client) {
-        logger.info("[system] Unloading system module...");
-        log("WARN", "System Module Unloaded", "System module was unloaded.");
-
-        try {
-            healthJob.stop();
-            logger.info("[system] Health monitor stopped.");
-        } catch (err) {
-            logger.error(`[system] Error stopping health monitor: ${err.message}`);
-        }
+    async unload() {
+        logger.info("[system] System module unloaded.");
     }
 };
