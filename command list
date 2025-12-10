@@ -1,0 +1,105 @@
+
+> **Note:** All subcommands require **Administrator permissions** or **Bot Owner** permissions.
+
+---
+
+## ⚙️ `/registration config-roles`
+Configure or update the R1–R5 rank roles.
+
+### Options
+| Option | Description              |
+|--------|--------------------------|
+| `r1` | Role to assign for rank R1 |
+| `r2` | Role to assign for rank R2 |
+| `r3` | Role to assign for rank R3 |
+| `r4` | Role to assign for rank R4 |
+| `r5` | Role to assign for rank R5 |
+
+### Example
+  /registration config-roles r1:@Civilian r2:@Cadet r3:@Officer
+
+## ⚠️ `/registration config-approval`
+Set whether a rank requires manual approval (e.g., R4 & R5).
+
+### Options
+| Option | Description                                   |
+|--------|-----------------------------------------------|
+| `rank` (R1–R5) | Which rank’s approval rule to update  |
+| `required` (true/false) | Whether approval is required |
+
+### Example
+  /registration config-approval rank:R4 required:true
+
+## ➕ `/registration config-approver-add`
+Add a role that is allowed to approve pending registration requests.
+
+### Options
+| Option | Description                                      |
+|--------|--------------------------------------------------|
+| `role` | Role granted permission to approve registrations |
+
+### Example
+  /registration config-approver-add role:@Moderators
+
+## ➖ `/registration config-approver-remove`
+Remove a role from the approver list.
+
+### Options
+| Option | Description                              |
+|--------|------------------------------------------|
+| `role` | Role to remove from approval permissions |
+
+### Example
+/registration config-approver-remove role:@Trial-Mod
+
+## 📋 `/registration config-show`
+Displays the entire current registration configuration:
+
+- R1–R5 rank roles  
+- Approval requirements per rank  
+- Approver roles  
+- Registration logging channel  
+
+Use this to verify that your registration system is configured correctly.
+
+---
+
+## 🛰️ `/registration config-logchannel`
+Set the channel where registration logs will be sent.
+
+Logs include:
+- Approved registrations  
+- Denied registrations  
+- Workflow errors  
+- Debug messages for registration module  
+
+### Options
+| Option | Description                        |
+|--------|------------------------------------|
+| `channel` | Channel to send log messages to |
+
+### Example
+  /registration config-logchannel channel:#registration-logs
+
+## 📌 Permission Summary
+
+| Command | Permission Required                                       |
+|---------|-----------------------------------------------------------|
+| All `/registration` subcommands | Server Administrator OR Bot Owner |
+
+---
+
+## 💾 Configuration Stored
+
+The following values are saved per guild:
+
+- `role_r1` → R1 role ID  
+- `role_r2` → R2 role ID  
+- `role_r3` → R3 role ID  
+- `role_r4` → R4 role ID  
+- `role_r5` → R5 role ID  
+- `require_approval_rX` flags  
+- `approver_roles` JSON array  
+- `registration_log_channel_id`  
+
+---
