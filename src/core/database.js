@@ -1,29 +1,31 @@
 // src/core/database.js
+
 const Database = require("better-sqlite3");
 const logger = require("./logger");
 const { log } = require("./discordLogger");
-const path = require("path");
-const fs = require("fs");
 
-// Ensure /data exists (Render persistent disk)
-const DB_PATH = new Database("/data/astral_relay.sqlite");
-if (!fs.existsSync("/data")) fs.mkdirSync("/data");
+// Render persistent disk lives at /data/
+const DB_PATH = "/data/astral_relay.sqlite";
 
-const db = new Database(DB_PATH, (err) => {
-    if (err) {
-        logger.error("Failed to open SQLite database:");
-        console.error(err);
+let db;
 
-        log(
-            "ERROR",
-            "Database Error",
-            `Failed to open SQLite database.\n\`\`\`${err.message}\`\`\``
-        );
-        return;
-    }
+try {
+    db = new Database(DB_PATH);
 
-    logger.success("SQLite database loaded successfully.");
-    log("SUCCESS", "Database Ready", "SQLite database connected successfully.");
-});
+    logger.success(`SQLite database opened at ${DB_PATH}`);
+    log("SUCCESS", "Database Ready", `Database initialized at:\n\`${DB_PATH}\``);
+
+} catch (err) {
+    logger.error("Failed to open SQLite database:");
+    console.error(err);
+
+    log(
+        "ERROR",
+        "Database Failure",
+        `Could not open SQLite database.\n\`\`\`${err.message}\`\`\``
+    );
+
+    process.exit(1);
+}
 
 module.exports = db;
