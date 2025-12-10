@@ -267,7 +267,7 @@ module.exports = {
 
             const approverRoles = JSON.parse(reg.approver_roles || "[]");
 
-            const embed = createInfoEmbed("Registration Configuration", "")
+            const embed = createInfoEmbed("Registration Configuration", null)
                 .addFields(
                     {
                         name: "Rank Roles",
