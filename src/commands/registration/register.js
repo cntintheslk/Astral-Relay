@@ -1,7 +1,7 @@
 // src/commands/registration/register.js
 
 const { SlashCommandBuilder } = require("discord.js");
-const { getSettings } = require("../../modules/registration/settingsStore");
+const { getSettings, getRegistrationConfig } = require("../../modules/registration/settingsStore");
 const db = require("../../core/database");
 const logger = require("../../core/logger");
 const { log } = require("../../core/discordLogger");
@@ -51,7 +51,7 @@ module.exports = {
         const rank = interaction.options.getString("rank"); // "R1".."R5"
 
         // Load guild-specific registration settings
-        const settings = getSettings(guildId);
+        const settings = getRegistrationConfig(guildId);
 
         if (!settings) {
             logger.warn(`[register] No registration settings for guild ${guildId}`);
@@ -89,9 +89,8 @@ module.exports = {
         const member = await interaction.guild.members.fetch(userId);
 
         // Decide if this rank needs approval
-        const needsApproval =
-            (rank === "R4" && settings.require_approval_r4) ||
-            (rank === "R5" && settings.require_approval_r5);
+        const needsApproval = settings.approvalRequired[rank];
+
 
         const timestamp = Date.now();
 
