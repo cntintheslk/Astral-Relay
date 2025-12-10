@@ -14,18 +14,17 @@ const {
     createErrorEmbed,
 } = require("../../core/embedStyles");
 
+// Correct import mapping
 const {
-    getRegistrationConfig,
+    getSettings: getRegistrationConfig,
     setRegistrationRoles,
-    setApprovalRequirement,
-    addApproverRole,
-    removeApproverRole,
+    setApprovalConfig,
+    setApproverRoles,
 } = require("../../modules/registration/settingsStore");
 
 function isGuildAdminOrOwner(interaction) {
     if (!interaction.inGuild()) return false;
 
-    // Render owner IDs from config
     if (config.ownerIds && config.ownerIds.includes(interaction.user.id)) {
         return true;
     }
@@ -40,38 +39,30 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName("registration")
         .setDescription("Configure the R1–R5 registration system (admins only)")
+
         // ---- config roles ----
         .addSubcommand((sub) =>
             sub
                 .setName("config-roles")
                 .setDescription("Set or update the R1–R5 rank roles")
                 .addRoleOption((opt) =>
-                    opt.setName("r1_role")
-                        .setDescription("Role for R1")
-                        .setRequired(false)
+                    opt.setName("r1_role").setDescription("Role for R1").setRequired(false)
                 )
                 .addRoleOption((opt) =>
-                    opt.setName("r2_role")
-                        .setDescription("Role for R2")
-                        .setRequired(false)
+                    opt.setName("r2_role").setDescription("Role for R2").setRequired(false)
                 )
                 .addRoleOption((opt) =>
-                    opt.setName("r3_role")
-                        .setDescription("Role for R3")
-                        .setRequired(false)
+                    opt.setName("r3_role").setDescription("Role for R3").setRequired(false)
                 )
                 .addRoleOption((opt) =>
-                    opt.setName("r4_role")
-                        .setDescription("Role for R4")
-                        .setRequired(false)
+                    opt.setName("r4_role").setDescription("Role for R4").setRequired(false)
                 )
                 .addRoleOption((opt) =>
-                    opt.setName("r5_role")
-                        .setDescription("Role for R5")
-                        .setRequired(false)
+                    opt.setName("r5_role").setDescription("Role for R5").setRequired(false)
                 )
         )
-        // ---- config approval requirement ----
+
+        // ---- config approval ----
         .addSubcommand((sub) =>
             sub
                 .setName("config-approval")
@@ -96,58 +87,45 @@ module.exports = {
                         .setRequired(true)
                 )
         )
-        // ---- config approver add ----
+
+        // ---- approver add ----
         .addSubcommand((sub) =>
             sub
                 .setName("config-approver-add")
                 .setDescription("Add a role that can approve registrations")
                 .addRoleOption((opt) =>
-                    opt
-                        .setName("role")
-                        .setDescription("Role that can approve registrations")
-                        .setRequired(true)
+                    opt.setName("role").setDescription("Role to allow approvals").setRequired(true)
                 )
         )
-        // ---- config approver remove ----
+
+        // ---- approver remove ----
         .addSubcommand((sub) =>
             sub
                 .setName("config-approver-remove")
-                .setDescription("Remove a role's approval permission")
+                .setDescription("Remove a role's approval permissions")
                 .addRoleOption((opt) =>
-                    opt
-                        .setName("role")
-                        .setDescription("Role to remove from approvers")
-                        .setRequired(true)
+                    opt.setName("role").setDescription("Role to remove from approvers").setRequired(true)
                 )
         )
+
         // ---- show config ----
         .addSubcommand((sub) =>
-            sub
-                .setName("config-show")
-                .setDescription("Show the current registration configuration")
+            sub.setName("config-show").setDescription("View current registration configuration")
         ),
 
+
     async execute(interaction) {
+
         if (!interaction.inGuild()) {
             return interaction.reply({
-                embeds: [
-                    createErrorEmbed(
-                        "Guild Only",
-                        "Registration configuration can only be used inside a server."
-                    ),
-                ],
+                embeds: [createErrorEmbed("Guild Only", "This command must be run inside a server.")],
                 flags: 64,
             });
         }
 
         if (!isGuildAdminOrOwner(interaction)) {
             return interaction.reply({
-                embeds: [
-                    createErrorEmbed(
-                        "Insufficient Permissions",
-                        "You must be a server administrator (or bot owner) to configure registration."
-                    ),
-                ],
+                embeds: [createErrorEmbed("Insufficient Permissions", "You must be an admin to configure registration.")],
                 flags: 64,
             });
         }
@@ -155,213 +133,190 @@ module.exports = {
         const guildId = interaction.guildId;
         const sub = interaction.options.getSubcommand();
 
-        // --------------------------------
-        // /registration config-roles
-        // --------------------------------
+        //────────────────────────────────────────
+        //  /registration config-roles
+        //────────────────────────────────────────
+
         if (sub === "config-roles") {
+            const patch = {};
+
             const r1 = interaction.options.getRole("r1_role");
             const r2 = interaction.options.getRole("r2_role");
             const r3 = interaction.options.getRole("r3_role");
             const r4 = interaction.options.getRole("r4_role");
             const r5 = interaction.options.getRole("r5_role");
 
-            const patch = {};
-            if (r1) patch.R1 = r1.id;
-            if (r2) patch.R2 = r2.id;
-            if (r3) patch.R3 = r3.id;
-            if (r4) patch.R4 = r4.id;
-            if (r5) patch.R5 = r5.id;
+            if (r1) patch.r1 = r1.id;
+            if (r2) patch.r2 = r2.id;
+            if (r3) patch.r3 = r3.id;
+            if (r4) patch.r4 = r4.id;
+            if (r5) patch.r5 = r5.id;
 
             if (Object.keys(patch).length === 0) {
                 return interaction.reply({
+                    embeds: [createErrorEmbed("No Changes", "You did not provide any new roles.")],
+                    flags: 64,
+                });
+            }
+
+            setRegistrationRoles(guildId, patch);
+
+            log(
+                "SUCCESS",
+                "Registration Roles Updated",
+                Object.entries(patch)
+                    .map(([k, id]) => `• **${k.toUpperCase()}** → <@&${id}>`)
+                    .join("\n")
+            );
+
+            return interaction.reply({
+                embeds: [
+                    createSuccessEmbed(
+                        "Roles Updated",
+                        Object.entries(patch)
+                            .map(([k, id]) => `• **${k.toUpperCase()}** → <@&${id}>`)
+                            .join("\n")
+                    )
+                ],
+                flags: 64,
+            });
+        }
+
+        //────────────────────────────────────────
+        //  /registration config-approval
+        //────────────────────────────────────────
+
+        if (sub === "config-approval") {
+            const rank = interaction.options.getString("rank");
+            const required = interaction.options.getBoolean("required");
+
+            const configObj = {};
+            configObj[rank.toLowerCase()] = required;
+
+            setApprovalConfig(guildId, {
+                r4: rank === "R4" ? required : undefined,
+                r5: rank === "R5" ? required : undefined,
+            });
+
+            log("SUCCESS", "Approval Updated", `Rank ${rank} now requires approval: ${required}`);
+
+            return interaction.reply({
+                embeds: [
+                    createSuccessEmbed(
+                        "Approval Updated",
+                        `Rank **${rank}** now **${required ? "requires" : "does not require"}** approval.`
+                    )
+                ],
+                flags: 64,
+            });
+        }
+
+        //────────────────────────────────────────
+        //  /registration config-approver-add
+        //────────────────────────────────────────
+
+        if (sub === "config-approver-add") {
+            const role = interaction.options.getRole("role");
+
+            const existing = getRegistrationConfig(guildId) || {};
+            const list = existing.approver_roles ? JSON.parse(existing.approver_roles) : [];
+
+            if (!list.includes(role.id)) {
+                list.push(role.id);
+            }
+
+            setApproverRoles(guildId, list);
+
+            log("SUCCESS", "Approver Added", `<@&${role.id}> added as approver.`);
+
+            return interaction.reply({
+                embeds: [
+                    createSuccessEmbed("Approver Added", `<@&${role.id}> can now approve registrations.`)
+                ],
+                flags: 64,
+            });
+        }
+
+        //────────────────────────────────────────
+        //  /registration config-approver-remove
+        //────────────────────────────────────────
+
+        if (sub === "config-approver-remove") {
+            const role = interaction.options.getRole("role");
+
+            const existing = getRegistrationConfig(guildId) || {};
+            const list = existing.approver_roles ? JSON.parse(existing.approver_roles) : [];
+
+            const filtered = list.filter((id) => id !== role.id);
+
+            setApproverRoles(guildId, filtered);
+
+            log("WARN", "Approver Removed", `<@&${role.id}> removed from approvers.`);
+
+            return interaction.reply({
+                embeds: [
+                    createSuccessEmbed("Approver Removed", `<@&${role.id}> can no longer approve registrations.`)
+                ],
+                flags: 64,
+            });
+        }
+
+        //────────────────────────────────────────
+        //  /registration config-show
+        //────────────────────────────────────────
+
+        if (sub === "config-show") {
+            const reg = getRegistrationConfig(guildId);
+
+            if (!reg) {
+                return interaction.reply({
                     embeds: [
                         createErrorEmbed(
-                            "No Changes",
-                            "You didn't provide any roles to update."
-                        ),
+                            "Not Configured",
+                            "This server has no registration configuration yet."
+                        )
                     ],
                     flags: 64,
                 });
             }
 
-            const updated = setRegistrationRoles(guildId, patch);
-
-            logger.info(
-                `[registration] Updated rank roles in guild ${guildId}: ${JSON.stringify(
-                    patch
-                )}`
-            );
-            log(
-                "SUCCESS",
-                "Registration Roles Updated",
-                `Guild: \`${guildId}\`\nUpdated roles:\n${Object.entries(patch)
-                    .map(([rank, id]) => `• **${rank}** → <@&${id}> (\`${id}\`)`)
-                    .join("\n")}`
-            );
-
-            const replyEmbed = createSuccessEmbed(
-                "Registration Roles Updated",
-                "The following ranks have been updated:\n" +
-                Object.entries(patch)
-                    .map(([rank, id]) => `• **${rank}** → <@&${id}>`)
-                    .join("\n")
-            );
-
-            return interaction.reply({
-                embeds: [replyEmbed],
-                flags: 64,
-            });
-        }
-
-        // --------------------------------
-        // /registration config-approval
-        // --------------------------------
-        if (sub === "config-approval") {
-            const rank = interaction.options.getString("rank");
-            const required = interaction.options.getBoolean("required");
-
-            const updated = setApprovalRequirement(guildId, rank, required);
-
-            logger.info(
-                `[registration] Updated approval requirement for ${rank} in guild ${guildId} -> ${required}`
-            );
-            log(
-                "SUCCESS",
-                "Registration Approval Updated",
-                `Guild: \`${guildId}\`\nRank: **${rank}**\nRequires approval: **${required ? "Yes" : "No"}**`
-            );
-
-            const replyEmbed = createSuccessEmbed(
-                "Approval Requirement Updated",
-                `Rank **${rank}** now **${required ? "requires" : "does not require"}** approval.`
-            );
-
-            return interaction.reply({
-                embeds: [replyEmbed],
-                flags: 64,
-            });
-        }
-
-        // --------------------------------
-        // /registration config-approver-add
-        // --------------------------------
-        if (sub === "config-approver-add") {
-            const role = interaction.options.getRole("role");
-            const updated = addApproverRole(guildId, role.id);
-
-            logger.info(
-                `[registration] Added approver role ${role.id} in guild ${guildId}`
-            );
-            log(
-                "SUCCESS",
-                "Approver Role Added",
-                `Guild: \`${guildId}\`\nRole <@&${role.id}> added as registration approver.`
-            );
-
-            const replyEmbed = createSuccessEmbed(
-                "Approver Role Added",
-                `<@&${role.id}> can now approve registration requests.`
-            );
-
-            return interaction.reply({
-                embeds: [replyEmbed],
-                flags: 64,
-            });
-        }
-
-        // --------------------------------
-        // /registration config-approver-remove
-        // --------------------------------
-        if (sub === "config-approver-remove") {
-            const role = interaction.options.getRole("role");
-            const updated = removeApproverRole(guildId, role.id);
-
-            logger.info(
-                `[registration] Removed approver role ${role.id} in guild ${guildId}`
-            );
-            log(
-                "WARN",
-                "Approver Role Removed",
-                `Guild: \`${guildId}\`\nRole <@&${role.id}> removed from registration approvers.`
-            );
-
-            const replyEmbed = createSuccessEmbed(
-                "Approver Role Removed",
-                `<@&${role.id}> can no longer approve registration requests.`
-            );
-
-            return interaction.reply({
-                embeds: [replyEmbed],
-                flags: 64,
-            });
-        }
-
-        // --------------------------------
-        // /registration config-show
-        // --------------------------------
-        if (sub === "config-show") {
-            const reg = getRegistrationConfig(guildId);
-
-            const roleName = (rankKey) => {
-                const id = reg.roles[rankKey];
-                return id ? `<@&${id}> (\`${id}\`)` : "*Not set*";
+            const roles = {
+                R1: reg.role_r1,
+                R2: reg.role_r2,
+                R3: reg.role_r3,
+                R4: reg.role_r4,
+                R5: reg.role_r5,
             };
 
-            const approvals = Object.entries(reg.approvalRequired)
-                .map(
-                    ([rank, needed]) =>
-                        `• **${rank}** → ${needed ? "✅ Requires approval" : "⚪ Auto-approve"}`
-                )
-                .join("\n");
+            const approval = {
+                R4: !!reg.require_approval_r4,
+                R5: !!reg.require_approval_r5,
+            };
 
-            const approvers =
-                reg.approverRoleIds.length > 0
-                    ? reg.approverRoleIds
-                        .map((id) => `• <@&${id}> (\`${id}\`)`)
-                        .join("\n")
-                    : "*No approver roles configured.*";
+            const approvers = reg.approver_roles ? JSON.parse(reg.approver_roles) : [];
 
-            const embed = createInfoEmbed(
-                "Registration Configuration",
-                "Here is the current per-guild registration configuration:"
-            ).addFields(
-                {
-                    name: "Rank Roles",
-                    value:
-                        `• **R1** → ${roleName("R1")}\n` +
-                        `• **R2** → ${roleName("R2")}\n` +
-                        `• **R3** → ${roleName("R3")}\n` +
-                        `• **R4** → ${roleName("R4")}\n` +
-                        `• **R5** → ${roleName("R5")}`,
-                    inline: false,
-                },
-                {
-                    name: "Approval Requirements",
-                    value: approvals,
-                    inline: false,
-                },
-                {
-                    name: "Approver Roles",
-                    value: approvers,
-                    inline: false,
-                }
-            );
+            const embed = createInfoEmbed("Registration Configuration", "Current settings:")
+                .addFields(
+                    {
+                        name: "Rank Roles",
+                        value: Object.entries(roles)
+                            .map(([k, id]) => `• **${k}** → ${id ? `<@&${id}>` : "*Not set*"}`)
+                            .join("\n"),
+                    },
+                    {
+                        name: "Approval Requirements",
+                        value: `• **R4** → ${approval.R4 ? "Yes" : "No"}\n• **R5** → ${approval.R5 ? "Yes" : "No"}`,
+                    },
+                    {
+                        name: "Approver Roles",
+                        value:
+                            approvers.length > 0
+                                ? approvers.map((id) => `• <@&${id}>`).join("\n")
+                                : "*None configured.*",
+                    }
+                );
 
-            return interaction.reply({
-                embeds: [embed],
-                flags: 64,
-            });
+            return interaction.reply({ embeds: [embed], flags: 64 });
         }
-
-        // Fallback – shouldn’t hit
-        return interaction.reply({
-            embeds: [
-                createErrorEmbed(
-                    "Unknown Subcommand",
-                    "This subcommand is not recognized."
-                ),
-            ],
-            flags: 64,
-        });
     },
 };
