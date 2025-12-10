@@ -1,7 +1,6 @@
--- Add IGN column (only run once)
 ALTER TABLE registrations ADD COLUMN ign TEXT DEFAULT '';
+ALTER TABLE registrations ADD COLUMN timestamp INTEGER DEFAULT 0;
 
--- Backfill
 UPDATE registrations
-SET ign = 'Unknown'
-WHERE ign IS NULL OR ign = '';
+SET timestamp = strftime('%s', 'now')
+WHERE timestamp = 0 OR timestamp IS NULL;
