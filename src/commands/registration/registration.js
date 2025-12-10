@@ -251,52 +251,55 @@ module.exports = {
     : "*Not configured*";
 
         if (sub === "config-show") {
-            const reg = getSettings(guildId) || {};
+        const reg = getSettings(guildId) || {};
 
-            const roles = {
-                R1: reg.role_r1,
-                R2: reg.role_r2,
-                R3: reg.role_r3,
-                R4: reg.role_r4,
-                R5: reg.role_r5,
-            };
+        const roles = {
+            R1: reg.role_r1,
+            R2: reg.role_r2,
+            R3: reg.role_r3,
+            R4: reg.role_r4,
+            R5: reg.role_r5,
+        };
 
-            const approvals = ["r1", "r2", "r3", "r4", "r5"]
-                .map(r => {
-                    const field = `require_approval_${r}`;
-                    return `• **${r.toUpperCase()}** → ${reg[field] ? "✅ Requires approval" : "⚪ Auto-approve"}`;
-                })
-                .join("\n");
+        const approvals = ["r1", "r2", "r3", "r4", "r5"]
+            .map(r => {
+                const field = `require_approval_${r}`;
+                return `• **${r.toUpperCase()}** → ${reg[field] ? "✅ Requires approval" : "⚪ Auto-approve"}`;
+            })
+            .join("\n");
 
-            const approverRoles = JSON.parse(reg.approver_roles || "[]");
+        const approverRoles = JSON.parse(reg.approver_roles || "[]");
 
-            const embed = createInfoEmbed("Registration Configuration", null)
-                .addFields(
-                    {
-                        name: "Rank Roles",
-                        value: Object.entries(roles)
-                            .map(([rank, id]) => `• **${rank}** → ${id ? `<@&${id}>` : "*Not set*"}`)
-                            .join("\n")
-                    },
-                    {
-                        name: "Approval Requirements",
-                        value: approvals
-                    },
-                    {
-                        name: "Approver Roles",
-                        value: approverRoles.length
-                            ? approverRoles.map(id => `• <@&${id}>`).join("\n")
-                            : "*None configured*"
-                    },
-                    {
-                        name: "Registration Log Channel",
-                        value: logChannelDisplay
-                    }
-                   
-                );
+        const logChannelDisplay = reg.registration_log_channel_id
+            ? `<#${reg.registration_log_channel_id}>`
+            : "*Not configured*";
 
-            return interaction.reply({ embeds: [embed], flags: 64 });
-        }
+        const embed = createInfoEmbed("Registration Configuration", null)
+            .addFields(
+                {
+                    name: "Rank Roles",
+                    value: Object.entries(roles)
+                        .map(([rank, id]) => `• **${rank}** → ${id ? `<@&${id}>` : "*Not set*"}`)
+                        .join("\n")
+                },
+                {
+                    name: "Approval Requirements",
+                    value: approvals
+                },
+                {
+                    name: "Approver Roles",
+                    value: approverRoles.length
+                        ? approverRoles.map(id => `• <@&${id}>`).join("\n")
+                        : "*None configured*"
+                },
+                {
+                    name: "Registration Log Channel",
+                    value: logChannelDisplay
+                }
+            );
+
+        return interaction.reply({ embeds: [embed], flags: 64 });
+    }
 
         // ============================================
         // /registration config-logchannel
