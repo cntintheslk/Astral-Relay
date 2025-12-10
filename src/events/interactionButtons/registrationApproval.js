@@ -1,6 +1,6 @@
 // src/interactionButtons/registrationApproval.js
 
-const db = require("../../core");
+const db = require("../../core/database");
 const logger = require("../../core/logger");
 const { getSettings } = require("../modules/registration/settingsStore");
 const config = require("../../core/config");
