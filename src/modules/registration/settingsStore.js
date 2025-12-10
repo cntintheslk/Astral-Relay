@@ -25,22 +25,22 @@ function normalizeBoolean(input, fallback = 0) {
  * Fetch raw settings row
  */
 function getSettings(guildId) {
-    return db.prepare(`
+    const row = db.prepare(`
         SELECT *
-        FROM registration_settings
+        FROM guild_settings
         WHERE guild_id = ?
     `).get(guildId);
 
-        return row || {
-        approver_roles: "[]",
-        role_r1: null,
-        role_r2: null,
-        role_r3: null,
-        role_r4: null,
-        role_r5: null,
-        registration_log_channel_id: null
-        };
+    if (!row) return {};
+
+    const json = row.data ? JSON.parse(row.data) : {};
+
+    return {
+        ...json,
+        registration_log_channel_id: row.registration_log_channel_id || null
+    };
 }
+
 
 /**
  * Transform raw DB row into structured config
