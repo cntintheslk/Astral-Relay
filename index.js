@@ -70,11 +70,25 @@ app.listen(PORT, () => {
         `Webhook server running on **port ${PORT}**`
     );
 });
-const githubWebhook = require("./src/webhooks/github");
+app.use(express.json());
 
-app.use("/webhooks", githubWebhook(client));
+// Basic GET route so GitHub stops complaining
+app.get("/webhooks/github", (req, res) => {
+    res.status(200).send("GitHub Webhook Endpoint Active");
+});
 
-app.listen(PORT, () => {
-    console.log(`[WEBHOOK] Listening on port ${PORT}`);
+// Actual POST handler for webhook events
+app.post("/webhooks/github", (req, res) => {
+    const event = req.headers["x-github-event"];
+    const payload = req.body;
+
+    console.log("GitHub Event:", event);
+    console.log("Payload:", payload);
+
+    // respond immediately
+    res.status(200).send("OK");
+
+    // process GitHub events here
+});
 });
 
