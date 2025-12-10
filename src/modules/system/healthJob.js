@@ -1,56 +1,80 @@
 // modules/system/healthJob.js
-
+const { log } = require("../../core/discordLogger");
 const { buildHealthEmbed } = require("./buildHealthEmbed");
 
-let healthMessage = null;   // persistent reference to the health message
-let healthChannel = null;
+let healthMessageId = null;
+let lastTick = Date.now();
 
-const HEALTH_INTERVAL = 15000; // 15 seconds
-
-async function startHealthJob(client) {
-    const channelId = process.env.DEV_HEALTH_CHANNEL_ID;
-
-    if (!channelId) {
-        console.warn("[HEALTH] No HEALTH_CHANNEL_ID set — job disabled.");
-        return;
-    }
-
-    // Fetch channel
-    const channel = client.channels.cache.get(channelId);
+/**
+ * Starts the health monitoring job.
+ * Runs every 15 seconds.
+ * Logs event loop delays and health update errors to Discord.
+ */
+function start(client, channel) {
     if (!channel) {
-        console.warn("[HEALTH] Invalid HEALTH_CHANNEL_ID — cannot start job.");
+        log("ERROR", "Health Monitor Error", "Health monitor channel is missing — cannot start.");
         return;
     }
 
-    healthChannel = channel;
+    log(
+        "SUCCESS",
+        "Health Monitor Started",
+        "System health diagnostics are running every **15 seconds**."
+    );
 
-    // --- INITIAL SEND ---
-    if (!healthMessage) {
+    setInterval(async () => {
+
+        // -------------------------------------
+        // EVENT LOOP DELAY MONITORING
+        // -------------------------------------
+        const now = Date.now();
+        const loopDelay = now - lastTick - 15000;
+        lastTick = now;
+
+        if (loopDelay > 1000) {
+            log(
+                "ERROR",
+                "Event Loop Stall Detected",
+                `The event loop is **${loopDelay}ms** behind schedule — possible freeze.`
+            );
+        } else if (loopDelay > 300) {
+            log(
+                "WARN",
+                "Event Loop Delay",
+                `Event loop running **${loopDelay}ms** slower than expected.`
+            );
+        }
+
+        // -------------------------------------
+        // HEALTH EMBED UPDATE
+        // -------------------------------------
         const embed = buildHealthEmbed(client);
 
         try {
-            healthMessage = await channel.send({ embeds: [embed] });
+            if (!healthMessageId) {
+                // First-time posting of the health embed
+                const msg = await channel.send({ embeds: [embed] });
+                healthMessageId = msg.id;
+
+                log(
+                    "INFO",
+                    "Health Message Created",
+                    `New system health panel initialized.\nMessage ID: \`${healthMessageId}\``
+                );
+            } else {
+                // Update the existing message
+                await channel.messages.edit(healthMessageId, { embeds: [embed] });
+            }
+
         } catch (err) {
-            console.error("[HEALTH] Failed to send initial health message:", err);
-            return;
+            log(
+                "ERROR",
+                "Health Panel Update Failed",
+                `Failed to send or edit health embed.\n\`\`\`${err.message}\`\`\``
+            );
         }
-    }
 
-    console.log("[HEALTH] Auto-update system started.");
-
-    // --- AUTO REFRESH LOOP ---
-    setInterval(async () => {
-        if (!healthMessage) return;
-
-        try {
-            const embed = buildHealthEmbed(client);
-
-            // Edit existing message only (prevents spam)
-            await healthMessage.edit({ embeds: [embed] });
-        } catch (err) {
-            console.error("[HEALTH] Failed to update health message:", err);
-        }
-    }, HEALTH_INTERVAL);
+    }, 15000); // 15 seconds
 }
 
-module.exports = { startHealthJob };
+module.exports = { start };
