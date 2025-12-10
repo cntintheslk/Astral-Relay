@@ -1,6 +1,6 @@
 // src/core/logger.js
 
-const chalk = require("chalk");
+const chalk = require("chalk").default;
 const config = require("./config");
 
 const LEVELS = ["DEBUG", "INFO", "WARN", "ERROR"];
