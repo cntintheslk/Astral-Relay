@@ -1,10 +1,10 @@
 // src/interactionButtons/registrationApproval.js
 
-const db = require("../core/database");
-const logger = require("../core/logger");
+const db = require("../../core");
+const logger = require("../../core/logger");
 const { getSettings } = require("../modules/registration/settingsStore");
-const config = require("../core/config");
-const { log } = require("../core/discordLogger");
+const config = require("../../core/config");
+const { log } = require("../../core/discordLogger");
 
 module.exports = {
     async handle(interaction) {
