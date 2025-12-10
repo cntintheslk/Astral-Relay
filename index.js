@@ -44,8 +44,6 @@ client.login(config.token).catch((err) => {
   console.error(err);
 });
 
-const PORT = process.env.PORT || 3000;
-
 app.use(express.json());
 
 // Basic test route
@@ -72,21 +70,51 @@ app.listen(PORT, () => {
 });
 app.use(express.json());
 
-// Basic GET route so GitHub stops complaining
+// Health check route
+app.get("/", (req, res) => {
+    res.status(200).send("Astral Relay is running.");
+});
+
+// GitHub GET route (required for GitHub verification)
 app.get("/webhooks/github", (req, res) => {
     res.status(200).send("GitHub Webhook Endpoint Active");
 });
 
-// Actual POST handler for webhook events
+// ---------------------------------------------
+// 🔽 THIS IS STEP 2 — PLACE IT RIGHT HERE 🔽
+// ---------------------------------------------
 app.post("/webhooks/github", (req, res) => {
     const event = req.headers["x-github-event"];
     const payload = req.body;
 
-    console.log("GitHub Event:", event);
-    console.log("Payload:", payload);
+    console.log(`[GitHub Webhook] Event: ${event}`);
 
-    // respond immediately
-    res.status(200).send("OK");
+    // Respond quickly so GitHub doesn't timeout
+    res.status(200).json({ status: "received" });
 
-    // process GitHub events here
+    // Handle push events (example)
+    if (event === "push") {
+        const commits = payload.commits
+            .map(c => `• **${c.message.trim()}** (${c.id.slice(0,7)}) by *${c.author.name}*`)
+            .join("\n");
+
+        const embed = {
+            title: `📦 Push to ${payload.ref.replace("refs/heads/", "")}`,
+            description: commits || "No commit messages.",
+            color: 0x5865f2,
+            timestamp: new Date(),
+            footer: {
+                text: `Repo: ${payload.repository.full_name}`
+            }
+        };
+
+        const channel = client.channels.cache.get("YOUR_CHANNEL_ID");
+        if (channel) channel.send({ embeds: [embed] });
+    }
 });
+// ---------------------------------------------
+// 🔼 END OF STEP 2 HANDLER 🔼
+// ---------------------------------------------
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Web server running on port ${PORT}`));
