@@ -5,7 +5,7 @@ const {
     PermissionFlagsBits
 } = require("discord.js");
 
-const dbAdmin = require("../../modules/dbadmin/dbAdmin");
+const dbAdmin = require("../../../modules/dbadmin/dbAdmin");
 const config = require("../../core/config");
 const { createInfoEmbed, createErrorEmbed, createSuccessEmbed } = require("../../core/embedStyles");
 const logger = require("../../core/logger");
