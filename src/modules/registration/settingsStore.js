@@ -1,54 +1,28 @@
 const db = require("../../core/database");
 
 function getRegistrationConfig(guildId) {
-    const row = db.prepare(`
-        SELECT *
-        FROM registration_settings
-        WHERE guild_id = ?
-    `).get(guildId);
-
-    // No config yet → return clean defaults
-    if (!row) {
-        return {
-            roles: {
-                R1: null,
-                R2: null,
-                R3: null,
-                R4: null,
-                R5: null,
-            },
-            approvalRequired: {
-                R1: false,
-                R2: false,
-                R3: false,
-                R4: false,
-                R5: false,
-            },
-            approverRoleIds: [],
-        };
-    }
+    const row = getSettings(guildId);
 
     return {
         roles: {
-            R1: row.role_r1 ?? null,
-            R2: row.role_r2 ?? null,
-            R3: row.role_r3 ?? null,
-            R4: row.role_r4 ?? null,
-            R5: row.role_r5 ?? null,
+            R1: row?.role_r1 || null,
+            R2: row?.role_r2 || null,
+            R3: row?.role_r3 || null,
+            R4: row?.role_r4 || null,
+            R5: row?.role_r5 || null,
         },
         approvalRequired: {
-            R1: row.require_approval_r1 === 1,
-            R2: row.require_approval_r2 === 1,
-            R3: row.require_approval_r3 === 1,
-            R4: row.require_approval_r4 === 1,
-            R5: row.require_approval_r5 === 1,
+            R1: row?.require_approval_r1 === 1,
+            R2: row?.require_approval_r2 === 1,
+            R3: row?.require_approval_r3 === 1,
+            R4: row?.require_approval_r4 === 1,
+            R5: row?.require_approval_r5 === 1,
         },
-        approverRoleIds: row.approver_roles
+        approverRoleIds: row?.approver_roles
             ? JSON.parse(row.approver_roles)
             : [],
     };
 }
-
 
 function getSettings(guildId) {
     return db.prepare(`
