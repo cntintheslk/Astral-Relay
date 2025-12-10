@@ -1,79 +1,56 @@
-// src/modules/system/healthJob.js
+// modules/system/healthJob.js
 
-const logger = require("../../core/logger");
-const { EmbedBuilder } = require("discord.js");
+const { buildHealthEmbed } = require("./buildHealthEmbed");
 
-let interval = null;
+let healthMessage = null;   // persistent reference to the health message
+let healthChannel = null;
 
-module.exports = {
-    start(client) {
-        logger.info("[system] Starting health monitor...");
+const HEALTH_INTERVAL = 15000; // 15 seconds
 
-        const guildId = process.env.DEV_GUILD_ID;
-        const channelId = process.env.DEV_HEALTH_CHANNEL_ID; // make this later
-        const messageId = process.env.DEV_HEALTH_MESSAGE_ID; // also optional until we add
+async function startHealthJob(client) {
+    const channelId = process.env.HEALTH_CHANNEL_ID;
 
-        if (!guildId || !channelId) {
-            logger.warn("[system] Health monitor disabled: missing DEV_HEALTH_CHANNEL_ID.");
+    if (!channelId) {
+        console.warn("[HEALTH] No HEALTH_CHANNEL_ID set — job disabled.");
+        return;
+    }
+
+    // Fetch channel
+    const channel = client.channels.cache.get(channelId);
+    if (!channel) {
+        console.warn("[HEALTH] Invalid HEALTH_CHANNEL_ID — cannot start job.");
+        return;
+    }
+
+    healthChannel = channel;
+
+    // --- INITIAL SEND ---
+    if (!healthMessage) {
+        const embed = buildHealthEmbed(client);
+
+        try {
+            healthMessage = await channel.send({ embeds: [embed] });
+        } catch (err) {
+            console.error("[HEALTH] Failed to send initial health message:", err);
             return;
-        }
-
-        const guild = client.guilds.cache.get(guildId);
-        if (!guild) {
-            logger.warn("[system] Health monitor disabled: guild not found.");
-            return;
-        }
-
-        const channel = guild.channels.cache.get(channelId);
-        if (!channel) {
-            logger.warn("[system] Health monitor disabled: channel not found.");
-            return;
-        }
-
-        async function update() {
-            try {
-                const memory = process.memoryUsage();
-
-                const embed = new EmbedBuilder()
-                    .setColor(0x3498db)
-                    .setTitle("🩺 Astral Relay — System Health")
-                    .setDescription("Auto-updating health status report")
-                    .addFields(
-                        {
-                            name: "Uptime",
-                            value: `${Math.floor(process.uptime())}s`,
-                            inline: true,
-                        },
-                        {
-                            name: "Memory Used",
-                            value: `${Math.round(memory.rss / 1024 / 1024)} MB`,
-                            inline: true,
-                        },
-                        {
-                            name: "Node Version",
-                            value: process.version,
-                            inline: true,
-                        }
-                    )
-                    .setTimestamp();
-
-                // Later we will pin a message ID and edit instead of sending new ones.
-                await channel.send({ embeds: [embed] });
-            } catch (err) {
-                logger.error("[system] Health monitor update failed: " + err.message);
-            }
-        }
-
-        // Update every 60 seconds
-        interval = setInterval(update, 60_000);
-        update(); // run immediately
-    },
-
-    stop() {
-        if (interval) {
-            clearInterval(interval);
-            interval = null;
-            logger.info("[system] Health monitor stopped.");
         }
     }
-};
+
+    console.log("[HEALTH] Auto-update system started.");
+
+    // --- AUTO REFRESH LOOP ---
+    setInterval(async () => {
+        if (!healthMessage) return;
+
+        try {
+            const embed = buildHealthEmbed(client);
+
+            // Edit existing message only (prevents spam)
+            await healthMessage.edit({ embeds: [embed] });
+        } catch (err) {
+            console.error("[HEALTH] Failed to update health message:", err);
+        }
+    }, HEALTH_INTERVAL);
+}
+
+module.exports = { startHealthJob };
