@@ -246,10 +246,6 @@ module.exports = {
         // /registration config-show
         // ============================================
 
-        const logChannelDisplay = reg.registration_log_channel_id
-    ? `<#${reg.registration_log_channel_id}>`
-    : "*Not configured*";
-
         if (sub === "config-show") {
         const reg = getSettings(guildId) || {};
 
