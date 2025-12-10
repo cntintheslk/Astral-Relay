@@ -4,9 +4,10 @@ const logger = require("../core/logger");
 const { log } = require("../core/discordLogger");
 
 async function deployCommands(client) {
-    const commands = Array.from(client.commands.values()).map(cmd =>
-        cmd.data.toJSON()
-    );
+    const commandObjects = Array.from(client.commands.values());
+
+    const commands = commandObjects.map(cmd => cmd.data.toJSON());
+    const commandNames = commandObjects.map(cmd => `• \`${cmd.data.name}\``).join("\n");
 
     const rest = new REST({ version: "10" }).setToken(config.token);
 
@@ -20,13 +21,15 @@ async function deployCommands(client) {
             { body: commands }
         );
 
-        logger.success("Guild slash command deployment complete.");
+        logger.success(`Guild slash command deployment complete.`);
 
-        // Discord Log
+        // Discord log
         log(
             "SUCCESS",
             "Slash Commands Deployed",
-            `**${commands.length}** commands deployed to the development guild.\nGuild ID: \`${config.devGuildId}\``
+            `**${commands.length}** commands deployed to the development guild.\n` +
+            `Guild ID: \`${config.devGuildId}\`\n\n` +
+            `**Commands:**\n${commandNames}`
         );
 
     } catch (err) {
