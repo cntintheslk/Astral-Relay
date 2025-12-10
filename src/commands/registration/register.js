@@ -1,10 +1,10 @@
-// src/commands/registration/register.js
-
 const { SlashCommandBuilder } = require("discord.js");
 const { getSettings, getRegistrationConfig } = require("../../modules/registration/settingsStore");
 const db = require("../../core/database");
 const logger = require("../../core/logger");
-const { log } = require("../../core/discordLogger");
+
+// NEW IMPORT
+const { sendRegLog } = require("../../core/registrationLogHelper");
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -26,17 +26,10 @@ module.exports = {
                     { name: "R2", value: "R2" },
                     { name: "R3", value: "R3" },
                     { name: "R4", value: "R4" },
-                    { name: "R5", value: "R5" },
+                    { name: "R5", value: "R5" }
                 )
         ),
 
-    /**
-     * /register execution
-     * - Reads per-guild config
-     * - Assigns rank role (or queues approval for high ranks)
-     * - Sets nickname: [Rank] | IGN
-     * - Logs to DB + Discord
-     */
     async execute(interaction) {
         if (!interaction.guild) {
             return interaction.reply({
@@ -45,66 +38,51 @@ module.exports = {
             });
         }
 
-        const guildId = interaction.guild.id;
+        const guild = interaction.guild;
+        const guildId = guild.id;
         const userId = interaction.user.id;
         const ign = interaction.options.getString("ign");
-        const rank = interaction.options.getString("rank"); // "R1".."R5"
+        const rank = interaction.options.getString("rank");
 
-        // Load guild-specific registration settings
         const settings = getRegistrationConfig(guildId);
 
         if (!settings) {
             logger.warn(`[register] No registration settings for guild ${guildId}`);
             return interaction.reply({
-                content:
-                    "⚠️ Registration is not configured on this server.\n" +
-                    "An admin must run the registration config command first.",
+                content: "⚠️ Registration is not configured on this server.",
                 flags: 64,
             });
         }
 
-        // Map rank -> role field
         const roleMap = settings.roles;
-
         const targetRoleId = roleMap[rank];
 
         if (!targetRoleId) {
-            logger.error(
-                `[register] No role configured for ${rank} in guild ${guildId}`
-            );
+            logger.error(`[register] No role configured for ${rank} in guild ${guildId}`);
             return interaction.reply({
-                content:
-                    `❌ The server has not configured a role for **${rank}** yet.\n` +
-                    "Please contact an administrator.",
+                content: `❌ No role configured for **${rank}**. Please contact an admin.`,
                 flags: 64,
             });
         }
 
-        const member = await interaction.guild.members.fetch(userId);
+        const member = await guild.members.fetch(userId);
 
-        // Decide if this rank needs approval
         const needsApproval = settings.approvalRequired[rank];
-
-        console.log("DEBUG: approvalRequired = ", settings.approvalRequired);
-        console.log("DEBUG: needsApproval = ", needsApproval);
-
         const timestamp = Date.now();
 
-        // Insert registration record into DB
         const insertStmt = db.prepare(`
             INSERT INTO registrations (guild_id, user_id, ign, rank, status, timestamp)
             VALUES (?, ?, ?, ?, ?, ?)
         `);
 
+        // -----------------------------
+        // PENDING REGISTRATION
+        // -----------------------------
         if (needsApproval) {
-            // For now: queue as pending, no approver workflow yet
             insertStmt.run(guildId, userId, ign, rank, "pending", timestamp);
 
-            logger.info(
-                `[register] Pending registration for ${userId} as ${rank} in guild ${guildId}`
-            );
-
-            log(
+            await sendRegLog(
+                guild,
                 "INFO",
                 "Registration Pending",
                 `User: <@${userId}>\nRank: **${rank}**\nIGN: \`${ign}\`\nStatus: \`pending\``
@@ -115,57 +93,46 @@ module.exports = {
                     `✅ Your registration has been received.\n` +
                     `Requested Rank: **${rank}**\n` +
                     `IGN: \`${ign}\`\n\n` +
-                    "Your application requires **manual approval**. A staff member will review it shortly.",
+                    "Your application requires **manual approval**.",
                 flags: 64,
             });
         }
 
-        // Auto-approve flow
+        // -----------------------------
+        // AUTO APPROVAL
+        // -----------------------------
         insertStmt.run(guildId, userId, ign, rank, "auto", timestamp);
 
-        // Assign role
+        // Assign rank role
         try {
             await member.roles.add(targetRoleId);
         } catch (err) {
-            logger.error(
-                `[register] Failed to assign role ${targetRoleId} to ${userId}: ${err.message}`
-            );
-            console.error(err);
-
+            logger.error(`[register] Failed to assign role ${targetRoleId}: ${err.message}`);
             return interaction.reply({
-                content:
-                    "⚠️ Registration recorded, but I couldn't assign your role.\n" +
-                    "Please contact a server administrator.",
+                content: "⚠️ Registration saved, but role assignment failed.",
                 flags: 64,
             });
         }
 
-        // Set nickname: [Rank] | IGN
+        // Set nickname
         const desiredNick = `[${rank}] | ${ign}`;
         if (member.manageable) {
             try {
                 await member.setNickname(desiredNick);
             } catch (err) {
-                logger.warn(
-                    `[register] Failed to set nickname for ${userId} in guild ${guildId}: ${err.message}`
-                );
+                logger.warn(`[register] Failed to set nickname: ${err.message}`);
             }
         }
 
-        logger.success(
-            `[register] Auto-approved ${userId} as ${rank} (${ign}) in guild ${guildId}`
-        );
-
-        log(
+        await sendRegLog(
+            guild,
             "SUCCESS",
-            "Registration Approved",
+            "Registration Auto-Approved",
             `User: <@${userId}>\nRank: **${rank}**\nIGN: \`${ign}\`\nStatus: \`auto-approved\``
         );
 
         return interaction.reply({
-            content:
-                `✅ You have been registered as **${rank}**.\n` +
-                `Your nickname has been set to \`${desiredNick}\`.`,
+            content: `✅ You have been registered as **${rank}**.\nYour nickname is now \`${desiredNick}\`.`,
             flags: 64,
         });
     },

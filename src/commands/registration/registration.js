@@ -245,6 +245,11 @@ module.exports = {
         // ============================================
         // /registration config-show
         // ============================================
+
+        const logChannelDisplay = reg.registration_log_channel_id
+    ? `<#${reg.registration_log_channel_id}>`
+    : "*Not configured*";
+
         if (sub === "config-show") {
             const reg = getSettings(guildId) || {};
 
@@ -282,7 +287,12 @@ module.exports = {
                         value: approverRoles.length
                             ? approverRoles.map(id => `• <@&${id}>`).join("\n")
                             : "*None configured*"
+                    },
+                    {
+                        name: "Registration Log Channel",
+                        value: logChannelDisplay
                     }
+                   
                 );
 
             return interaction.reply({ embeds: [embed], flags: 64 });

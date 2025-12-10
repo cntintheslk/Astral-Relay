@@ -2,7 +2,8 @@
 
 CREATE TABLE IF NOT EXISTS guild_settings (
   guild_id TEXT PRIMARY KEY,
-  data     TEXT NOT NULL
+  data     TEXT NOT NULL,
+  registration_log_channel_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS users (
