@@ -90,5 +90,3 @@ app.post("/webhooks/github", (req, res) => {
 
     // process GitHub events here
 });
-});
-
