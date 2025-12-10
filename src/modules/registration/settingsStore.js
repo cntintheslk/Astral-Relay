@@ -27,20 +27,55 @@ function normalizeBoolean(input, fallback = 0) {
 function getSettings(guildId) {
     const row = db.prepare(`
         SELECT *
-        FROM guild_settings
+        FROM registration_settings
         WHERE guild_id = ?
     `).get(guildId);
 
-    if (!row) return {};
+    // If no row exists at all → return sane defaults
+    if (!row) {
+        return {
+            guild_id: guildId,
+            role_r1: null,
+            role_r2: null,
+            role_r3: null,
+            role_r4: null,
+            role_r5: null,
+            approver_roles: "[]",
+            require_approval_r1: 0,
+            require_approval_r2: 0,
+            require_approval_r3: 0,
+            require_approval_r4: 0,
+            require_approval_r5: 0,
+            registration_log_channel_id: null
+        };
+    }
 
-    const json = row.data ? JSON.parse(row.data) : {};
+    // Ensure approver_roles is always valid JSON
+    if (typeof row.approver_roles === "string") {
+        try {
+            JSON.parse(row.approver_roles);
+        } catch {
+            row.approver_roles = "[]";
+        }
+    }
 
+    // Ensure all required fields exist
     return {
-        ...json,
+        guild_id: row.guild_id,
+        role_r1: row.role_r1 || null,
+        role_r2: row.role_r2 || null,
+        role_r3: row.role_r3 || null,
+        role_r4: row.role_r4 || null,
+        role_r_r5: row.role_r5 || null,
+        approver_roles: row.approver_roles || "[]",
+        require_approval_r1: row.require_approval_r1 ?? 0,
+        require_approval_r2: row.require_approval_r2 ?? 0,
+        require_approval_r3: row.require_approval_r3 ?? 0,
+        require_approval_r4: row.require_approval_r4 ?? 0,
+        require_approval_r5: row.require_approval_r5 ?? 0,
         registration_log_channel_id: row.registration_log_channel_id || null
     };
 }
-
 
 /**
  * Transform raw DB row into structured config
