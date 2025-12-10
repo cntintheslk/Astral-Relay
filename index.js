@@ -37,7 +37,6 @@ process.on("uncaughtException", (err) => {
   logger.error("Uncaught Exception:");
   console.error(err);
 });
-const express = require("express");
 const githubWebhook = require("./src/webhooks/github");
 
 app.use("/webhooks", githubWebhook(client));
