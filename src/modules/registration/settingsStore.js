@@ -1,5 +1,42 @@
 const db = require("../../core/database");
 
+/**
+ * Normalize boolean-like inputs into clean integer flags (0/1)
+ * Accepts: true, false, "true", "false", 1, 0, null, undefined
+ */
+function normalizeBoolean(input, fallback = 0) {
+    if (input === undefined || input === null) {
+        return fallback === 1 ? 1 : 0;
+    }
+
+    // truthy values
+    if (
+        input === true ||
+        input === "true" ||
+        input === 1 ||
+        input === "1"
+    ) {
+        return 1;
+    }
+
+    // everything else is false
+    return 0;
+}
+
+/**
+ * Fetch the raw settings row from DB
+ */
+function getSettings(guildId) {
+    return db.prepare(`
+        SELECT *
+        FROM registration_settings
+        WHERE guild_id = ?
+    `).get(guildId);
+}
+
+/**
+ * Transform settings row into structured config
+ */
 function getRegistrationConfig(guildId) {
     const row = getSettings(guildId);
 
@@ -24,14 +61,9 @@ function getRegistrationConfig(guildId) {
     };
 }
 
-function getSettings(guildId) {
-    return db.prepare(`
-        SELECT *
-        FROM registration_settings
-        WHERE guild_id = ?
-    `).get(guildId);
-}
-
+/**
+ * Save/update settings in the DB
+ */
 function saveSettings(guildId, settings) {
     const {
         role_r1, role_r2, role_r3, role_r4, role_r5,
@@ -77,6 +109,9 @@ function saveSettings(guildId, settings) {
     );
 }
 
+/**
+ * Store role mapping for R1–R5
+ */
 function setRegistrationRoles(guildId, roles) {
     const existing = getSettings(guildId) || {};
 
@@ -91,21 +126,25 @@ function setRegistrationRoles(guildId, roles) {
 }
 
 /**
- * Set approval configuration for ANY rank (R1–R5)
+ * Set approval requirement flags for any rank
+ * (This is the function that previously broke!)
  */
 function setApprovalConfig(guildId, config) {
     const existing = getSettings(guildId) || {};
 
     saveSettings(guildId, {
         ...existing,
-        require_approval_r1: config.R1 ?? existing.require_approval_r1 ?? 0,
-        require_approval_r2: config.R2 ?? existing.require_approval_r2 ?? 0,
-        require_approval_r3: config.R3 ?? existing.require_approval_r3 ?? 0,
-        require_approval_r4: config.R4 ?? existing.require_approval_r4 ?? 0,
-        require_approval_r5: config.R5 ?? existing.require_approval_r5 ?? 0,
+        require_approval_r1: normalizeBoolean(config.R1, existing.require_approval_r1),
+        require_approval_r2: normalizeBoolean(config.R2, existing.require_approval_r2),
+        require_approval_r3: normalizeBoolean(config.R3, existing.require_approval_r3),
+        require_approval_r4: normalizeBoolean(config.R4, existing.require_approval_r4),
+        require_approval_r5: normalizeBoolean(config.R5, existing.require_approval_r5),
     });
 }
 
+/**
+ * Save approver roles
+ */
 function setApproverRoles(guildId, approverRoles) {
     const existing = getSettings(guildId) || {};
 
