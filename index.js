@@ -7,7 +7,7 @@ const { loadSchemas } = require("./src/modules/_schema");
 const validateConfig = require("./src/core/configValidator");
 const config = require("./src/core/config");
 
-const validateConfig = require("./src/core/configValidator");
+validateConfig(config);
 
 // Check for missing bot token
 if (!config.token) {
