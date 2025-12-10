@@ -1,4 +1,3 @@
-ALTER TABLE registrations ADD COLUMN ign TEXT DEFAULT '';
 ALTER TABLE registrations ADD COLUMN timestamp INTEGER DEFAULT 0;
 
 UPDATE registrations
