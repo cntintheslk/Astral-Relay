@@ -13,7 +13,7 @@ async function startHealthJob(client) {
     if (!channelId) {
         console.warn("[HEALTH] No HEALTH_CHANNEL_ID set — job disabled.");
         return;
-    }s
+    }
 
     // Fetch channel
     const channel = client.channels.cache.get(channelId);
