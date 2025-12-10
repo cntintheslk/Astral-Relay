@@ -7,7 +7,7 @@ const { log } = require("../core/discordLogger");
 const commands = require("../handlers/commands");
 
 // Load button handler for registration approvals
-const approvalHandler = require("../interactionButtons/registrationApproval");
+const approvalHandler = require("./interactionButtons/registrationApproval");
 
 module.exports = {
     name: "interactionCreate",
