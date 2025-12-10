@@ -5,7 +5,7 @@ const config = require("../core/config");
 const { createErrorEmbed, createInfoEmbed, createSuccessEmbed } = require("../core/embedStyles");
 const dbAdminUI = require("../modules/dbadmin/dbAdminUI");
 const dbAdmin = require("../modules/dbadmin/dbAdmin");
-const approvalHandler = require("../interactionButtons/registrationApproval");
+const approvalHandler = require("./interactionButtons/registrationApproval");
 const {
     ActionRowBuilder,
     ButtonBuilder,
