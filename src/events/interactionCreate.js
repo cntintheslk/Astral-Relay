@@ -3,7 +3,7 @@
 const logger = require("../core/logger");
 const { createErrorEmbed } = require("../core/embedStyles");
 const dbAdminUI = require("../modules/dbadmin/dbAdminUI");
-const dbAdmin = require("../modules/dbadmin/dbadmin");
+const dbAdmin = require("../modules/dbadmin/dbAdmin");
 const config = require("../core/config");
 const {
     ActionRowBuilder,

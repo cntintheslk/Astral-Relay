@@ -8,7 +8,7 @@ const {
     ComponentType
 } = require("discord.js");
 
-const dbAdmin = require("./dbadmin");
+const dbAdmin = require("./dbAdmin");
 const {
     createInfoEmbed,
     createErrorEmbed,
