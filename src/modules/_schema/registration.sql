@@ -11,9 +11,13 @@ CREATE TABLE IF NOT EXISTS registration_settings (
     require_approval_r3 INTEGER DEFAULT 1,
     require_approval_r4 INTEGER DEFAULT 1,
     require_approval_r5 INTEGER DEFAULT 1,
-    approver_roles TEXT
+    approver_roles TEXT,
     registration_log_channel_id TEXT
 );
+
+ALTER TABLE registration_settings
+ADD COLUMN registration_log_channel_id TEXT;
+
 
 -- Registration log / state machine
 CREATE TABLE IF NOT EXISTS registrations (
