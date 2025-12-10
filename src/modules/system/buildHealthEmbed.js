@@ -1,48 +1,54 @@
+// modules/system/buildHealthEmbed.js
 const { EmbedBuilder } = require("discord.js");
 const os = require("os");
+const { execSync } = require("child_process");
 
-// Keep your existing hosted background image
-const BASE64_IMAGE =
-  "https://media.discordapp.net/attachments/1448193668728225813/1448193724990361650/Astral_Relay_-_Health_System_Embed_Image.png?ex=693a5f02&is=69390d82&hm=f2cfb6fb5c9c136264793af2d88f21ee2bb3099514a13011141757b5d35f4145&=&format=webp&quality=lossless&width=1536&height=864";
+const IMAGE = "https://media.discordapp.net/attachments/1448193668728225813/1448193724990361650/Astral_Relay_-_Health_System_Embed_Image.png?format=webp&quality=lossless&width=1536&height=864";
 
-// CPU load calculation
-function getCpuLoad() {
-    const cpus = os.cpus();
-    let idle = 0, total = 0;
-
-    for (const cpu of cpus) {
-        for (const type in cpu.times) total += cpu.times[type];
-        idle += cpu.times.idle;
-    }
-
-    const idleAvg = idle / cpus.length;
-    const totalAvg = total / cpus.length;
-    return Math.round((1 - idleAvg / totalAvg) * 100);
-}
-
-// Uptime formatting
 function formatUptime(seconds) {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
+
     return `${h}h ${m}m ${s}s`;
+}
+
+function getDiskInfo() {
+    try {
+        // Run Linux df command on /data (Render disk mount)
+        const output = execSync("df -k /data").toString().split("\n")[1].trim().split(/\s+/);
+
+        const totalKB = parseInt(output[1], 10);
+        const usedKB = parseInt(output[2], 10);
+        const freeKB = parseInt(output[3], 10);
+
+        return {
+            totalMB: Math.round(totalKB / 1024),
+            usedMB: Math.round(usedKB / 1024),
+            freeMB: Math.round(freeKB / 1024),
+            percent: ((usedKB / totalKB) * 100).toFixed(1)
+        };
+
+    } catch (err) {
+        return {
+            totalMB: 0,
+            usedMB: 0,
+            freeMB: 0,
+            percent: "ERR"
+        };
+    }
 }
 
 function buildHealthEmbed(client) {
     const mem = process.memoryUsage();
-    const totalMem = os.totalmem();
-    const usedMem = mem.rss;
-
-    const ramPercent = ((usedMem / totalMem) * 100).toFixed(1);
-    const cpuLoad = getCpuLoad();
-
+    const diskInfo = getDiskInfo();
     const uptimeSeconds = Math.floor(process.uptime());
     const uptimeString = formatUptime(uptimeSeconds);
 
     const botAvatar = client.user.displayAvatarURL();
 
     return new EmbedBuilder()
-        .setColor(0x6b5bff) // astral purple
+        .setColor(0x6b5bff)
         .setTitle("✨ Astral Relay — System Health")
         .setDescription("**Live system diagnostics** updated every 15 seconds.\n")
         .setThumbnail(botAvatar)
@@ -54,12 +60,7 @@ function buildHealthEmbed(client) {
             },
             {
                 name: "🧠 Memory Used",
-                value: `\`${Math.round(usedMem / 1024 / 1024)} MB (${ramPercent}%)\``,
-                inline: true,
-            },
-            {
-                name: "🖥 CPU Load",
-                value: `\`${cpuLoad}%\``,
+                value: `\`${Math.round(mem.rss / 1024 / 1024)} MB\``,
                 inline: true,
             },
             {
@@ -68,12 +69,21 @@ function buildHealthEmbed(client) {
                 inline: true,
             },
             {
+                name: "💾 Disk Usage (/data)",
+                value:
+`**Used:** ${diskInfo.usedMB} MB  
+**Free:** ${diskInfo.freeMB} MB  
+**Total:** ${diskInfo.totalMB} MB  
+**Usage:** ${diskInfo.percent}%`,
+                inline: false,
+            },
+            {
                 name: "🌌 System Status",
                 value: "```\nONLINE — Nominal\n```",
                 inline: false,
             }
         )
-        .setImage(BASE64_IMAGE)
+        .setImage(IMAGE)
         .setTimestamp()
         .setFooter({
             text: "Astral Relay — System Log",

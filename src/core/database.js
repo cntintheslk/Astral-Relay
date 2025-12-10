@@ -1,61 +1,29 @@
 // src/core/database.js
-
-const Database = require("better-sqlite3");
+const sqlite3 = require("sqlite3").verbose();
+const logger = require("./logger");
+const { log } = require("./discordLogger");
 const path = require("path");
 const fs = require("fs");
 
-const logger = require("./logger");
-const { log } = require("./discordLogger");
+// Ensure /data exists (Render persistent disk)
+const DB_PATH = "/data/astral_relay.sqlite";
+if (!fs.existsSync("/data")) fs.mkdirSync("/data");
 
-// Path to database file
-const dbPath = path.join(__dirname, "/data/astral_relay.sqlite");
+const db = new sqlite3.Database(DB_PATH, (err) => {
+    if (err) {
+        logger.error("Failed to open SQLite database:");
+        console.error(err);
 
-// Ensure /data directory exists
-const dataDir = path.join(__dirname, "/data");
-if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-}
-
-let db;
-
-try {
-    db = new Database(dbPath);
-    logger.success("SQLite database loaded successfully.");
-} catch (err) {
-    logger.error("Failed to load SQLite database:");
-    console.error(err);
-}
-
-module.exports = {
-    db,
-
-    run(query, params = []) {
-        try {
-            return db.prepare(query).run(params);
-        } catch (err) {
-            logger.error(`DB RUN ERROR: ${err.message}`);
-            log("ERROR", "Database Run Error", `\`\`\`${err.message}\`\`\``);
-            throw err;
-        }
-    },
-
-    get(query, params = []) {
-        try {
-            return db.prepare(query).get(params);
-        } catch (err) {
-            logger.error(`DB GET ERROR: ${err.message}`);
-            log("ERROR", "Database Get Error", `\`\`\`${err.message}\`\`\``);
-            throw err;
-        }
-    },
-
-    all(query, params = []) {
-        try {
-            return db.prepare(query).all(params);
-        } catch (err) {
-            logger.error(`DB ALL ERROR: ${err.message}`);
-            log("ERROR", "Database All Error", `\`\`\`${err.message}\`\`\``);
-            throw err;
-        }
+        log(
+            "ERROR",
+            "Database Error",
+            `Failed to open SQLite database.\n\`\`\`${err.message}\`\`\``
+        );
+        return;
     }
-};
+
+    logger.success("SQLite database loaded successfully.");
+    log("SUCCESS", "Database Ready", "SQLite database connected successfully.");
+});
+
+module.exports = db;
