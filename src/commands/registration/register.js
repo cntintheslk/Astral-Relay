@@ -85,6 +85,8 @@ module.exports = {
         // Decide if this rank needs approval
         const needsApproval = settings.approvalRequired[rank];
 
+        console.log("DEBUG: approvalRequired = ", settings.approvalRequired);
+        console.log("DEBUG: needsApproval = ", needsApproval);
 
         const timestamp = Date.now();
 
