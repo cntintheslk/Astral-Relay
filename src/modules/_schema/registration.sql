@@ -1,16 +1,27 @@
 -- Registration tables
 
-CREATE TABLE IF NOT EXISTS registrations (
-  id           TEXT PRIMARY KEY,
-  guild_id     TEXT NOT NULL,
-  user_id      TEXT NOT NULL,
-  rank         TEXT NOT NULL,
-  status       TEXT NOT NULL, -- pending, approved, denied, auto_approved
-  submitted_at INTEGER NOT NULL,
-  updated_at   INTEGER NOT NULL,
-  approved_by  TEXT,          -- moderator id (nullable)
-  reason       TEXT           -- optional denial/notes
+CREATE TABLE IF NOT EXISTS registration_settings (
+    guild_id TEXT PRIMARY KEY,
+    role_r1   TEXT,
+    role_r2   TEXT,
+    role_r3   TEXT,
+    role_r4   TEXT,
+    role_r5   TEXT,
+    require_approval_r4 INTEGER DEFAULT 1,
+    require_approval_r5 INTEGER DEFAULT 1,
+    approver_roles TEXT
 );
+
+CREATE TABLE IF NOT EXISTS registrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    ign TEXT NOT NULL,
+    rank TEXT NOT NULL,
+    status TEXT NOT NULL, -- pending / approved / auto
+    timestamp INTEGER NOT NULL
+);
+
 
 CREATE INDEX IF NOT EXISTS idx_registrations_guild
   ON registrations (guild_id);
