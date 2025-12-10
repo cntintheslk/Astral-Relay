@@ -55,7 +55,7 @@ function saveSettings(guildId, settings) {
         ON CONFLICT(guild_id)
         DO UPDATE SET
             role_r1 = excluded.role_r1,
-            role_r2 = excluded.role_r_r2,
+            role_r2 = excluded.role_r2,
             role_r3 = excluded.role_r3,
             role_r4 = excluded.role_r4,
             role_r5 = excluded.role_r5,
