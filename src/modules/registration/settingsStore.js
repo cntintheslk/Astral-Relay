@@ -66,7 +66,7 @@ function getSettings(guildId) {
         role_r2: row.role_r2 || null,
         role_r3: row.role_r3 || null,
         role_r4: row.role_r4 || null,
-        role_r_r5: row.role_r5 || null,
+        role_r5: row.role_r5 || null,
         approver_roles: row.approver_roles || "[]",
         require_approval_r1: row.require_approval_r1 ?? 0,
         require_approval_r2: row.require_approval_r2 ?? 0,
