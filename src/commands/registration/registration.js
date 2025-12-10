@@ -22,10 +22,14 @@ const {
     setApproverRoles
 } = require("../../modules/registration/settingsStore");
 
+const db = require("../../core/database");
+
+// ----------------------------
+// PERMISSION CHECK
+// ----------------------------
 function isGuildAdminOrOwner(interaction) {
     if (!interaction.inGuild()) return false;
 
-    // Bot owners override everything
     if (config.ownerIds?.includes(interaction.user.id)) return true;
 
     const member = interaction.member;
@@ -44,11 +48,11 @@ module.exports = {
             sub
                 .setName("config-roles")
                 .setDescription("Set or update the R1–R5 rank roles")
-                .addRoleOption(opt => opt.setName("r1").setDescription("Role for R1").setRequired(false))
-                .addRoleOption(opt => opt.setName("r2").setDescription("Role for R2").setRequired(false))
-                .addRoleOption(opt => opt.setName("r3").setDescription("Role for R3").setRequired(false))
-                .addRoleOption(opt => opt.setName("r4").setDescription("Role for R4").setRequired(false))
-                .addRoleOption(opt => opt.setName("r5").setDescription("Role for R5").setRequired(false))
+                .addRoleOption(opt => opt.setName("r1").setDescription("Role for R1"))
+                .addRoleOption(opt => opt.setName("r2").setDescription("Role for R2"))
+                .addRoleOption(opt => opt.setName("r3").setDescription("Role for R3"))
+                .addRoleOption(opt => opt.setName("r4").setDescription("Role for R4"))
+                .addRoleOption(opt => opt.setName("r5").setDescription("Role for R5"))
         )
 
         // ---- CONFIG APPROVAL ----
@@ -69,8 +73,7 @@ module.exports = {
                         )
                 )
                 .addBooleanOption(opt =>
-                    opt
-                        .setName("required")
+                    opt.setName("required")
                         .setDescription("Should this rank require approval?")
                         .setRequired(true)
                 )
@@ -107,12 +110,17 @@ module.exports = {
                 .setDescription("Show the current registration configuration")
         )
 
-        .addChannelOption(opt =>
-            opt.setName("log_channel")
-            .setDescription("Channel where registration logs will be sent.")
-            .addChannelTypes(0) // 0 = text channel
+        // ---- NEW: CONFIG LOG CHANNEL ----
+        .addSubcommand(sub =>
+            sub
+                .setName("config-logchannel")
+                .setDescription("Set the channel where registration logs will be sent")
+                .addChannelOption(opt =>
+                    opt.setName("channel")
+                        .setDescription("The log channel")
+                        .setRequired(true)
+                )
         ),
-
 
     // ----------------------------------------------------
     // EXECUTE COMMAND
@@ -161,14 +169,6 @@ module.exports = {
 
             setRegistrationRoles(guildId, update);
 
-            log(
-                "SUCCESS",
-                "Registration Roles Updated",
-                Object.entries(update)
-                    .map(([rank, id]) => `• **${rank.toUpperCase()}** → <@&${id}>`)
-                    .join("\n")
-            );
-
             return interaction.reply({
                 embeds: [
                     createSuccessEmbed(
@@ -186,19 +186,12 @@ module.exports = {
         // /registration config-approval
         // ============================================
         if (sub === "config-approval") {
-            let rank = interaction.options.getString("rank"); // "r1" → "r5"
+            let rank = interaction.options.getString("rank");
             const required = interaction.options.getBoolean("required");
 
-            // Convert to correct format "R1" → "R5"
             rank = rank.toUpperCase();
 
             setApprovalConfig(guildId, { [rank]: required });
-
-            log(
-                "SUCCESS",
-                "Approval Requirement Updated",
-                `Rank **${rank}** now ${required ? "requires approval" : "auto-approves"}.`
-            );
 
             return interaction.reply({
                 embeds: [
@@ -210,7 +203,6 @@ module.exports = {
                 flags: 64
             });
         }
-
 
         // ============================================
         // /registration config-approver-add
@@ -225,8 +217,6 @@ module.exports = {
                 list.push(role.id);
                 setApproverRoles(guildId, list);
             }
-
-            log("SUCCESS", "Approver Role Added", `<@&${role.id}> added as approver.`);
 
             return interaction.reply({
                 embeds: [createSuccessEmbed("Approver Added", `<@&${role.id}> can now approve registrations.`)],
@@ -245,8 +235,6 @@ module.exports = {
 
             list = list.filter(id => id !== role.id);
             setApproverRoles(guildId, list);
-
-            log("WARN", "Approver Role Removed", `<@&${role.id}> removed as approver.`);
 
             return interaction.reply({
                 embeds: [createSuccessEmbed("Approver Removed", `<@&${role.id}> can no longer approve.`)],
@@ -271,8 +259,7 @@ module.exports = {
             const approvals = ["r1", "r2", "r3", "r4", "r5"]
                 .map(r => {
                     const field = `require_approval_${r}`;
-                    const needed = reg[field] ? true : false;
-                    return `• **${r.toUpperCase()}** → ${needed ? "✅ Requires approval" : "⚪ Auto-approve"}`;
+                    return `• **${r.toUpperCase()}** → ${reg[field] ? "✅ Requires approval" : "⚪ Auto-approve"}`;
                 })
                 .join("\n");
 
@@ -300,9 +287,13 @@ module.exports = {
 
             return interaction.reply({ embeds: [embed], flags: 64 });
         }
-        
-        if (options.getChannel("log_channel")) {
-            const ch = options.getChannel("log_channel");
+
+        // ============================================
+        // /registration config-logchannel
+        // ============================================
+        if (sub === "config-logchannel") {
+            const ch = interaction.options.getChannel("channel");
+
             db.prepare(`
                 UPDATE guild_settings
                 SET registration_log_channel_id = ?
@@ -310,12 +301,16 @@ module.exports = {
             `).run(ch.id, guildId);
 
             return interaction.reply({
-                content: `📑 Registration logs will now be sent to <#${ch.id}>.`,
-                ephemeral: true
+                embeds: [
+                    createSuccessEmbed(
+                        "Log Channel Set",
+                        `Registration logs will now be sent to <#${ch.id}>.`
+                    )
+                ],
+                flags: 64
             });
         }
 
-        // ---- fallback (should never run) ----
         return interaction.reply({
             embeds: [createErrorEmbed("Unknown Error", "Unhandled subcommand.")],
             flags: 64
