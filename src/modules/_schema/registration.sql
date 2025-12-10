@@ -14,11 +14,6 @@ CREATE TABLE IF NOT EXISTS registration_settings (
     approver_roles TEXT,
     registration_log_channel_id TEXT
 );
-
-ALTER TABLE registration_settings
-ADD COLUMN registration_log_channel_id TEXT;
-
-
 -- Registration log / state machine
 CREATE TABLE IF NOT EXISTS registrations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
