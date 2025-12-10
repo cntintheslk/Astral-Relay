@@ -1,7 +1,6 @@
 // modules/system/buildHealthEmbed.js
-const path = require("path")
 const { EmbedBuilder } = require("discord.js");
-const healthImage = path.join(__dirname, "../../media/Astral Relay - Health System Embed Image.png")
+const BASE64_IMAGE = "https://media.discordapp.net/attachments/1448193668728225813/1448193724990361650/Astral_Relay_-_Health_System_Embed_Image.png?ex=693a5f02&is=69390d82&hm=f2cfb6fb5c9c136264793af2d88f21ee2bb3099514a13011141757b5d35f4145&=&format=webp&quality=lossless&width=1536&height=864"
 function formatUptime(seconds) {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -45,7 +44,7 @@ function buildHealthEmbed(client) {
                 inline: false,
             }
         )
-        .setImage("attachment://Astral Relay - System Health Embed Image.png")
+        .setImage(BASE64_IMAGE)
         .setTimestamp()
         .setFooter({
             text: "Astral Relay — System Log",
