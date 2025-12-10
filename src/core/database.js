@@ -8,10 +8,10 @@ const logger = require("./logger");
 const { log } = require("./discordLogger");
 
 // Path to database file
-const dbPath = path.join(__dirname, "../../data/astral_relay.sqlite");
+const dbPath = path.join(__dirname, "/data/astral_relay.sqlite");
 
 // Ensure /data directory exists
-const dataDir = path.join(__dirname, "../../data");
+const dataDir = path.join(__dirname, "/data");
 if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
 }
