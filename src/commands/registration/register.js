@@ -78,6 +78,8 @@ module.exports = {
         // -----------------------------
         // PENDING REGISTRATION
         // -----------------------------
+        console.log("DEBUG SETTINGS =", getSettings(guild.id));
+
         if (needsApproval) {
             insertStmt.run(guildId, userId, ign, rank, "pending", timestamp);
 
