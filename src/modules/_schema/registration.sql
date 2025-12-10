@@ -34,6 +34,3 @@ CREATE INDEX IF NOT EXISTS idx_registrations_user
   ON registrations (user_id);
 
 
-DROP TABLE IF EXISTS pending_approvals;
-ALTER TABLE registrations ADD COLUMN approved_by TEXT;
-ALTER TABLE registrations ADD COLUMN reason TEXT;
