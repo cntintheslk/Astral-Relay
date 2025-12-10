@@ -2,6 +2,7 @@
 
 const logger = require("../core/logger");
 const { createInfoEmbed, createErrorEmbed } = require("../core/embedStyles");
+const { logError } = require("../core/discordLogger");
 
 module.exports = {
     name: "interactionCreate",
@@ -22,28 +23,33 @@ module.exports = {
                         "This command is not registered or has been removed."
                     )
                 ],
-                ephemeral: true
+                flags: 64
             });
         }
 
         try {
             // Execute the command
-            await command.execute(interaction);
+            await command.execute(interaction, client);
+
         } catch (err) {
+            // Console log
             logger.error(`Command execution error (${interaction.commandName}):`);
             console.error(err);
 
-            // Respond safely
-            // Try to reply, but fall back to follow-up if interaction was already replied/deferred
+            // Discord structured log
+            logError(`command:${interaction.commandName}`, err);
+
+            // Prepare error embed
             const errorEmbed = createErrorEmbed(
                 "Command Error",
                 "An unexpected error occurred while running this command.\nPlease try again later."
             );
 
+            // If already replied/deferred → followUp
             if (interaction.deferred || interaction.replied) {
-                await interaction.followUp({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
+                await interaction.followUp({ embeds: [errorEmbed], flags: 64 }).catch(() => {});
             } else {
-                await interaction.reply({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
+                await interaction.reply({ embeds: [errorEmbed], flags: 64 }).catch(() => {});
             }
         }
     },

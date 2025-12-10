@@ -1,22 +1,29 @@
+// src/core/logger.js
+
 const chalk = require("chalk");
+const config = require("./config");
 
-function log(type, message) {
-  const tag = `[${type}]`.padEnd(10);
+const LEVELS = ["DEBUG", "INFO", "WARN", "ERROR"];
+const currentLevelIndex = LEVELS.indexOf(config.logLevel.toUpperCase()) || 1;
 
-  const colours = {
-    INFO: chalk.blue,
-    SUCCESS: chalk.green,
-    WARN: chalk.yellow,
-    ERROR: chalk.red,
-  };
-
-  const colour = colours[type] || ((x) => x);
-  console.log(colour(tag), message);
+function shouldLog(level) {
+    return LEVELS.indexOf(level) >= currentLevelIndex;
 }
 
 module.exports = {
-  info: (m) => log("INFO", m),
-  success: (m) => log("SUCCESS", m),
-  warn: (m) => log("WARN", m),
-  error: (m) => log("ERROR", m),
+    debug(msg) {
+        if (shouldLog("DEBUG")) console.log(chalk.gray(`[DEBUG]    ${msg}`));
+    },
+    info(msg) {
+        if (shouldLog("INFO")) console.log(chalk.blue(`[INFO]     ${msg}`));
+    },
+    success(msg) {
+        if (shouldLog("INFO")) console.log(chalk.green(`[SUCCESS]  ${msg}`));
+    },
+    warn(msg) {
+        if (shouldLog("WARN")) console.log(chalk.yellow(`[WARN]     ${msg}`));
+    },
+    error(msg) {
+        if (shouldLog("ERROR")) console.log(chalk.red(`[ERROR]    ${msg}`));
+    }
 };

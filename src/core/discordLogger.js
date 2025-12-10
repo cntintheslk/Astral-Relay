@@ -1,35 +1,56 @@
 // src/core/discordLogger.js
 
 const { createLogEmbed } = require("./embedStyles");
-const logger = require("./logger");
-
 let logChannel = null;
-let clientRef = null;
+let clientInstance = null;
 
-// Called from ready.js
+// Set log channel when bot starts
 function setLogChannel(channel, client) {
     logChannel = channel;
-    clientRef = client;
-
-    logger.success(`Discord log channel set: ${channel.id}`);
+    clientInstance = client;
 }
 
-// Type: INFO / WARN / SUCCESS / ERROR
-async function log(type, title, description) {
-    if (!logChannel || !clientRef) {
-        return logger.warn(`Attempted to log before log channel was initialized: ${title}`);
+// Structured logging with optional metadata
+function log(type = "INFO", title, message, metadata = {}) {
+    if (!logChannel || !clientInstance) return;
+
+    let description = message;
+
+    // If metadata object exists, append as formatted list
+    if (metadata && typeof metadata === "object" && Object.keys(metadata).length) {
+        description += "\n\n**Details:**\n";
+        for (const [key, value] of Object.entries(metadata)) {
+            description += `• **${key}:** ${value}\n`;
+        }
     }
 
-    try {
-        const embed = createLogEmbed(clientRef, type, title, description);
-        await logChannel.send({ embeds: [embed] });
-    } catch (err) {
-        logger.error("Failed to send Discord log:");
-        console.error(err);
-    }
+    const embed = createLogEmbed(clientInstance, type, title, description);
+
+    logChannel.send({ embeds: [embed] }).catch(() => {});
+}
+
+// Namespaced logs: logModule("registration", "INFO", "Loaded", {...})
+function logModule(moduleName, type, title, message, metadata = {}) {
+    return log(type, `[module:${moduleName}] ${title}`, message, metadata);
+}
+
+// Expose structured logger for commands/events
+function logError(context, error) {
+    const errMsg = error?.stack || error?.message || `${error}`;
+    log(
+        "ERROR",
+        `Error in ${context}`,
+        "An unhandled error occurred.",
+        {
+            context,
+            error: errMsg.substring(0, 1900)
+        }
+    );
 }
 
 module.exports = {
     setLogChannel,
     log,
+    logModule,
+    logError
 };

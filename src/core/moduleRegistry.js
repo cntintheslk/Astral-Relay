@@ -3,152 +3,186 @@
 const fs = require("fs");
 const path = require("path");
 const logger = require("./logger");
-const { log } = require("./discordLogger");
+const { logModule, logError } = require("./discordLogger");
 
-const modulesRoot = path.join(__dirname, "../modules");
+const MODULES_DIR = path.join(process.cwd(), "src/modules");
 
-// name -> { module, path }
+// Internal tracking of loaded modules
+// name -> { module, path, metadata }
 const loadedModules = new Map();
 
+/**
+ * Discover modules inside /src/modules
+ */
 function discoverModules() {
-    if (!fs.existsSync(modulesRoot)) {
-        logger.warn("Modules directory not found, skipping module discovery.");
+    if (!fs.existsSync(MODULES_DIR)) {
+        logger.warn("Modules directory missing.");
         return [];
     }
 
-    const entries = fs.readdirSync(modulesRoot, { withFileTypes: true });
-
+    const dirs = fs.readdirSync(MODULES_DIR, { withFileTypes: true });
     const modules = [];
 
-    for (const entry of entries) {
+    for (const entry of dirs) {
         if (!entry.isDirectory()) continue;
-        if (entry.name.startsWith("_")) continue; // skip _schema etc.
+        if (entry.name.startsWith("_")) continue; // ignore _schema, etc.
 
-        const modulePath = path.join(modulesRoot, entry.name, "module.js");
+        const modPath = path.join(MODULES_DIR, entry.name, "module.js");
 
-        if (fs.existsSync(modulePath)) {
-            modules.push({
-                name: entry.name,
-                path: modulePath,
-            });
-        } else {
-            logger.warn(
-                `Module folder "${entry.name}" has no module.js, skipping.`
-            );
+        if (!fs.existsSync(modPath)) {
+            logger.warn(`Module "${entry.name}" missing module.js — skipped.`);
+            continue;
         }
+
+        modules.push({
+            name: entry.name,
+            path: modPath
+        });
     }
 
     return modules;
 }
 
+/**
+ * Load a module by definition
+ */
 async function loadModule(def, client) {
-    const { name, path: modulePath } = def;
+    const { name, path: modPath } = def;
 
     try {
-        delete require.cache[require.resolve(modulePath)];
-        const mod = require(modulePath);
+        // Clear require cache for reload support
+        delete require.cache[require.resolve(modPath)];
+        const mod = require(modPath);
 
         if (!mod || typeof mod.init !== "function") {
-            logger.warn(
-                `Module "${name}" does not export an init(client) function. Skipping.`
-            );
-            return;
+            logger.warn(`Module "${name}" has no init() — skipping.`);
+            logModule(name, "WARN", "Module Skipped", "Missing init(client) export.");
+            return false;
         }
 
-        // If it previously existed, unload first
+        // If module already loaded, unload first
         if (loadedModules.has(name)) {
             await unloadModule(name, client);
         }
 
-        // Call init; support async
+        // Initialize module
         await Promise.resolve(mod.init(client));
 
         loadedModules.set(name, {
             module: mod,
-            path: modulePath,
+            path: modPath,
+            metadata: {
+                loadedAt: new Date(),
+                supportsShutdown: typeof mod.shutdown === "function"
+            }
         });
 
-        logger.success(`Module loaded: ${name}`);
-        log("SUCCESS", "Module Loaded", `\`${name}\` module initialized.`);
+        logger.success(`[module:${name}] Initialized`);
+        logModule(name, "SUCCESS", "Module Loaded", `${name} initialized successfully.`);
+
+        return true;
+
     } catch (err) {
-        logger.error(`Failed to load module "${name}": ${err.message}`);
+        logger.error(`Error loading module "${name}": ${err.message}`);
         console.error(err);
-        log(
-            "ERROR",
-            "Module Load Error",
-            `Module: \`${name}\`\n\`\`\`${err.message}\`\`\``
-        );
+
+        logError(`moduleLoad:${name}`, err);
+        return false;
     }
 }
 
+/**
+ * Unload a module cleanly
+ */
 async function unloadModule(name, client) {
     const entry = loadedModules.get(name);
     if (!entry) {
-        logger.warn(`Tried to unload unknown module: ${name}`);
-        return;
+        logger.warn(`Unload requested for unknown module "${name}"`);
+        return false;
     }
 
-    const { module, path: modulePath } = entry;
+    const { module, path: modPath } = entry;
 
     try {
-        if (typeof module.unload === "function") {
-            await Promise.resolve(module.unload(client));
+        if (typeof module.shutdown === "function") {
+            await Promise.resolve(module.shutdown(client));
         }
 
-        delete require.cache[require.resolve(modulePath)];
+        delete require.cache[require.resolve(modPath)];
         loadedModules.delete(name);
 
-        logger.info(`Module unloaded: ${name}`);
-        log("WARN", "Module Unloaded", `\`${name}\` module was unloaded.`);
+        logger.warn(`[module:${name}] Unloaded`);
+        logModule(name, "WARN", "Module Unloaded", `${name} shutdown completed.`);
+
+        return true;
+
     } catch (err) {
-        logger.error(`Failed to unload module "${name}": ${err.message}`);
+        logger.error(`Error unloading module "${name}": ${err.message}`);
         console.error(err);
-        log(
-            "ERROR",
-            "Module Unload Error",
-            `Module: \`${name}\`\n\`\`\`${err.message}\`\`\``
-        );
+        logError(`moduleUnload:${name}`, err);
+        return false;
     }
 }
 
+/**
+ * Reload lifecycle for a module
+ */
 async function reloadModule(name, client) {
-    const modules = discoverModules();
-    const def = modules.find((m) => m.name === name);
+    const defs = discoverModules();
+    const def = defs.find((m) => m.name === name);
 
     if (!def) {
-        logger.warn(`Cannot reload, module definition not found: ${name}`);
-        return;
+        logger.warn(`Reload failed — module not found: ${name}`);
+        return false;
     }
 
     await unloadModule(name, client);
-    await loadModule(def, client);
+    return await loadModule(def, client);
 }
 
+/**
+ * Load all modules at startup
+ */
 async function loadAllModules(client) {
     const defs = discoverModules();
 
     if (!defs.length) {
-        logger.info("No modules discovered to load.");
+        logger.info("No modules discovered.");
         return;
     }
 
     logger.info(`Discovered ${defs.length} modules. Initializing...`);
 
     for (const def of defs) {
-        // eslint-disable-next-line no-await-in-loop
-        await loadModule(def, client);
+        try {
+            // Prevent concurrency issues during init()
+            // eslint-disable-next-line no-await-in-loop
+            await loadModule(def, client);
+        } catch (err) {
+            logger.error(`Fatal error loading module "${def.name}": ${err.message}`);
+            logError(`moduleFatal:${def.name}`, err);
+        }
     }
 
     logger.success("All modules loaded.");
 }
 
+/**
+ * List loaded modules
+ */
 function listModules() {
     return Array.from(loadedModules.keys());
 }
 
+/**
+ * Export API
+ */
 module.exports = {
-    loadAllModules,
-    reloadModule,
+    discoverModules,
+    loadModule,
     unloadModule,
+    reloadModule,
+    loadAllModules,
     listModules,
+    loadedModules // exported for introspection + dashboard future use
 };
