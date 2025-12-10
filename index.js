@@ -14,6 +14,9 @@ if (!config.token) {
   process.exit(1);
 }
 
+// Load SQL schemas before the bot starts
+loadSchemas();
+
 const client = createClient();
 
 // Load events
@@ -35,8 +38,3 @@ client.login(config.token).catch((err) => {
   logger.error("Failed to login:");
   console.error(err);
 });
-
-// Schema Loader
-
-const { loadSchemas } = require("./src/modules/_schema/index");
-loadSchemas();
