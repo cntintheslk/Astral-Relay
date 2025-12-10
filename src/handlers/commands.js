@@ -4,33 +4,47 @@ const path = require("path");
 function loadCommands(client) {
     client.commands = new Map();
 
-    const commandsPath = path.join(__dirname, "../commands");
-    const categories = fs.readdirSync(commandsPath); // ["global", "dev"]
+    const basePath = path.join(__dirname, "../commands");
+    const categories = fs.readdirSync(basePath); // ["global", "dev"]
 
     for (const category of categories) {
-        const categoryPath = path.join(commandsPath, category);
+        const categoryPath = path.join(basePath, category);
 
-        // Prevent crashes from missing folders
-        if (!fs.lstatSync(categoryPath).isDirectory()) {
-            console.warn(`Skipping ${categoryPath} — not a directory.`);
-            continue;
-        }
+        if (!fs.lstatSync(categoryPath).isDirectory()) continue;
 
-        const commandFiles = fs.readdirSync(categoryPath).filter(f => f.endsWith(".js"));
+        // Recursively load commands from subfolders
+        const items = fs.readdirSync(categoryPath);
 
-        for (const file of commandFiles) {
-            const filePath = path.join(categoryPath, file);
-            const command = require(filePath);
+        for (const item of items) {
+            const itemPath = path.join(categoryPath, item);
+            const stat = fs.lstatSync(itemPath);
 
-            if (!command.data) {
-                console.warn(`Skipping command ${file} — missing data export.`);
-                continue;
+            // CASE 1: Command file directly inside /global or /dev
+            if (stat.isFile() && item.endsWith(".js")) {
+                const command = require(itemPath);
+                if (!command.data) continue;
+
+                command.category = category;
+                client.commands.set(command.data.name, command);
             }
 
-            // Tag by category: global or dev
-            command.category = category;
+            // CASE 2: Command file inside a subfolder
+            if (stat.isDirectory()) {
+                const subfiles = fs.readdirSync(itemPath).filter(f => f.endsWith(".js"));
 
-            client.commands.set(command.data.name, command);
+                for (const file of subfiles) {
+                    const commandPath = path.join(itemPath, file);
+                    const command = require(commandPath);
+
+                    if (!command.data) {
+                        console.warn(`Skipping ${file} (missing data export)`);
+                        continue;
+                    }
+
+                    command.category = category; // global or dev
+                    client.commands.set(command.data.name, command);
+                }
+            }
         }
     }
 
