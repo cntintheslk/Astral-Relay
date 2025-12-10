@@ -16,6 +16,3 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS system_health (
     message_id TEXT
 );
-
-ALTER TABLE guild_settings
-DROP COLUMN registration_log_channel_id;
