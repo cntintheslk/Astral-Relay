@@ -1,9 +1,9 @@
 // src/commands/system/health.js
 
 const { SlashCommandBuilder } = require("discord.js");
-const { collectHealth } = require("../../core/health");
-const { createInfoEmbed } = require("../../core/embedStyles");
-const config = require("../../core/config");
+const { collectHealth } = require("../../../core/health");
+const { createInfoEmbed } = require("../../../core/embedStyles");
+const config = require("../../../core/config");
 
 module.exports = {
     data: new SlashCommandBuilder()
