@@ -8,7 +8,6 @@ module.exports = {
 
     async init(client) {
         logger.success("[module:system] Initialized.");
-        log("SUCCESS", "Module Init", "System module initialized.");
         // In future: register commands, health checks, etc.
     },
 
