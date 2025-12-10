@@ -34,6 +34,3 @@ CREATE INDEX IF NOT EXISTS idx_registrations_guild
 CREATE INDEX IF NOT EXISTS idx_registrations_user
   ON registrations (user_id);
 
-
-ALTER TABLE registration_settings
-ADD COLUMN registration_log_channel_id TEXT;
