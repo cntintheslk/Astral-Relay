@@ -179,27 +179,31 @@ module.exports = {
         // /registration config-approval
         // ============================================
         if (sub === "config-approval") {
-            const rank = interaction.options.getString("rank"); // r1–r5
+            let rank = interaction.options.getString("rank"); // "r1" → "r5"
             const required = interaction.options.getBoolean("required");
+
+            // Convert to correct format "R1" → "R5"
+            rank = rank.toUpperCase();
 
             setApprovalConfig(guildId, { [rank]: required });
 
             log(
                 "SUCCESS",
                 "Approval Requirement Updated",
-                `Rank **${rank.toUpperCase()}** now ${required ? "requires approval" : "auto-approves"}.`
+                `Rank **${rank}** now ${required ? "requires approval" : "auto-approves"}.`
             );
 
             return interaction.reply({
                 embeds: [
                     createSuccessEmbed(
                         "Approval Updated",
-                        `Rank **${rank.toUpperCase()}** now **${required ? "requires" : "does NOT require"}** approval.`
+                        `Rank **${rank}** now **${required ? "requires" : "does NOT require"}** approval.`
                     )
                 ],
                 flags: 64
             });
         }
+
 
         // ============================================
         // /registration config-approver-add
