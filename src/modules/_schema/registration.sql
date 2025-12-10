@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS registration_settings (
     require_approval_r4 INTEGER DEFAULT 1,
     require_approval_r5 INTEGER DEFAULT 1,
     approver_roles TEXT
+    registration_log_channel_id TEXT
 );
 
 -- Registration log / state machine
@@ -34,3 +35,5 @@ CREATE INDEX IF NOT EXISTS idx_registrations_user
   ON registrations (user_id);
 
 
+ALTER TABLE registration_settings
+ADD COLUMN registration_log_channel_id TEXT;
