@@ -1,12 +1,12 @@
 // src/core/database.js
-const sqlite3 = require("sqlite3").verbose();
+const Database = require("better-sqlite3");
 const logger = require("./logger");
 const { log } = require("./discordLogger");
 const path = require("path");
 const fs = require("fs");
 
 // Ensure /data exists (Render persistent disk)
-const DB_PATH = "/data/astral_relay.sqlite";
+const DB_PATH = new Database("/data/astral_relay.sqlite");
 if (!fs.existsSync("/data")) fs.mkdirSync("/data");
 
 const db = new sqlite3.Database(DB_PATH, (err) => {
