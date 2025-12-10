@@ -73,7 +73,7 @@ app.post("/webhooks/github", (req, res) => {
     // Process push events → send changelog
     if (event === "push") {
         const commits = payload.commits
-            ?.map(c => `• **${c.message.trim()}** (${c.id.slice(0,7)}) by *${c.author.name}*`)
+            ?.map(c => `• **${c.message.trim()}** (${c.id.slice(0,7)})`)
             .join("\n");
 
         changeLogChannel.send({
@@ -82,7 +82,7 @@ app.post("/webhooks/github", (req, res) => {
                 description: commits || "No commit messages.",
                 color: 0x5865f2,
                 timestamp: new Date(),
-                footer: { text: `Repo: ${payload.repository}` }
+                footer: { text: `Repo: ${payload.repository.full_name}` }
             }]
         });
     }
