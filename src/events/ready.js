@@ -3,6 +3,7 @@
 const logger = require("../core/logger");
 const { setLogChannel, log } = require("../core/discordLogger");
 const config = require("../core/config");
+const { loadAllModules } = require("../core/moduleRegistry");
 
 module.exports = {
     name: "ready",
@@ -29,5 +30,8 @@ module.exports = {
 
         logger.info(`Environment: ${config.environment || "production"}`);
         logger.info(`Node Version: ${process.version}`);
+
+                // 🔹 Load all modules AFTER logging is up
+        await loadAllModules(client);
     },
 };
