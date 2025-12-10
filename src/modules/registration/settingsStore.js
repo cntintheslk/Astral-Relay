@@ -2,11 +2,10 @@ const db = require("../../core/database");
 
 /**
  * Normalize boolean-like inputs into clean integer flags (0/1)
- * Accepts: true, false, "true", "false", 1, 0, null, undefined
  */
 function normalizeBoolean(input, fallback = 0) {
     if (input === undefined || input === null) {
-        return fallback === 1 ? 1 : 0;
+        return fallback ? 1 : 0;
     }
 
     // truthy values
@@ -19,12 +18,11 @@ function normalizeBoolean(input, fallback = 0) {
         return 1;
     }
 
-    // everything else is false
     return 0;
 }
 
 /**
- * Fetch the raw settings row from DB
+ * Fetch raw settings row
  */
 function getSettings(guildId) {
     return db.prepare(`
@@ -35,7 +33,7 @@ function getSettings(guildId) {
 }
 
 /**
- * Transform settings row into structured config
+ * Transform raw DB row into structured config
  */
 function getRegistrationConfig(guildId) {
     const row = getSettings(guildId);
@@ -48,13 +46,16 @@ function getRegistrationConfig(guildId) {
             R4: row?.role_r4 || null,
             R5: row?.role_r5 || null,
         },
+
+        // FIXED: SQLite returns strings → must use Number()
         approvalRequired: {
-            R1: row?.require_approval_r1 === 1,
-            R2: row?.require_approval_r2 === 1,
-            R3: row?.require_approval_r3 === 1,
-            R4: row?.require_approval_r4 === 1,
-            R5: row?.require_approval_r5 === 1,
+            R1: row && Number(row.require_approval_r1) === 1,
+            R2: row && Number(row.require_approval_r2) === 1,
+            R3: row && Number(row.require_approval_r3) === 1,
+            R4: row && Number(row.require_approval_r4) === 1,
+            R5: row && Number(row.require_approval_r5) === 1,
         },
+
         approverRoleIds: row?.approver_roles
             ? JSON.parse(row.approver_roles)
             : [],
@@ -62,7 +63,7 @@ function getRegistrationConfig(guildId) {
 }
 
 /**
- * Save/update settings in the DB
+ * Save/update settings
  */
 function saveSettings(guildId, settings) {
     const {
@@ -110,7 +111,7 @@ function saveSettings(guildId, settings) {
 }
 
 /**
- * Store role mapping for R1–R5
+ * Save role mapping for ranks R1–R5
  */
 function setRegistrationRoles(guildId, roles) {
     const existing = getSettings(guildId) || {};
@@ -126,8 +127,8 @@ function setRegistrationRoles(guildId, roles) {
 }
 
 /**
- * Set approval requirement flags for any rank
- * (This is the function that previously broke!)
+ * Setting approval requirements for R1–R5
+ * (This was the bug source — NOW FIXED)
  */
 function setApprovalConfig(guildId, config) {
     const existing = getSettings(guildId) || {};
@@ -143,7 +144,7 @@ function setApprovalConfig(guildId, config) {
 }
 
 /**
- * Save approver roles
+ * Save approver role list
  */
 function setApproverRoles(guildId, approverRoles) {
     const existing = getSettings(guildId) || {};
