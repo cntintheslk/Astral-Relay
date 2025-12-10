@@ -5,24 +5,24 @@ const {
     PermissionFlagsBits,
 } = require("discord.js");
 
-const config = require("../../core/config");
-const logger = require("../../core/logger");
-const { log } = require("../../core/discordLogger");
+const config = require("../../../core/config");
+const logger = require("../../../core/logger");
+const { log } = require("../../../core/discordLogger");
 
 const {
     createInfoEmbed,
     createSuccessEmbed,
     createErrorEmbed,
-} = require("../../core/embedStyles");
+} = require("../../../core/embedStyles");
 
 const {
     getSettings,
     setRegistrationRoles,
     setApprovalConfig,
     setApproverRoles
-} = require("../../modules/registration/settingsStore");
+} = require("../../../modules/registration/settingsStore");
 
-const db = require("../../core/database");
+const db = require("../../../core/database");
 
 // ----------------------------
 // PERMISSION CHECK

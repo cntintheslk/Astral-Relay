@@ -4,40 +4,65 @@ const logger = require("../core/logger");
 const { log } = require("../core/discordLogger");
 
 async function deployCommands(client) {
-    const commandObjects = Array.from(client.commands.values());
+    const allCommands = Array.from(client.commands.values());
 
-    const commands = commandObjects.map(cmd => cmd.data.toJSON());
-    const commandNames = commandObjects.map(cmd => `• \`${cmd.data.name}\``).join("\n");
+    // Split commands by folder/category
+    const globalCommands = allCommands
+        .filter(cmd => cmd.category === "global")
+        .map(cmd => cmd.data.toJSON());
+
+    const devCommands = allCommands
+        .filter(cmd => cmd.category === "dev")
+        .map(cmd => cmd.data.toJSON());
 
     const rest = new REST({ version: "10" }).setToken(config.token);
 
     try {
-        logger.info(
-            `Deploying ${commands.length} slash commands...`
-        );
+        // -----------------------------
+        //  GLOBAL COMMAND DEPLOY
+        // -----------------------------
+        logger.info(`Deploying ${globalCommands.length} GLOBAL commands...`);
 
         await rest.put(
             Routes.applicationCommands(client.user.id),
-            { body: commands }
+            { body: globalCommands }
         );
 
-        logger.success(`Global slash command deployment complete.`);
+        logger.success("Global commands deployed.");
 
-        // Discord log
         log(
             "SUCCESS",
-            "Slash Commands Deployed",
-            `**${commands.length}** commands deployed globally\n` +
-            `**Commands:**\n${commandNames}`
+            "Global Commands Deployed",
+            `**${globalCommands.length}** global commands deployed.\n\n` +
+            globalCommands.map(c => `• \`${c.name}\``).join("\n")
+        );
+
+        // -----------------------------
+        //  DEV GUILD COMMAND DEPLOY
+        // -----------------------------
+        logger.info(`Deploying ${devCommands.length} DEV commands to guild ${config.devGuildId}...`);
+
+        await rest.put(
+            Routes.applicationGuildCommands(client.user.id, config.devGuildId),
+            { body: devCommands }
+        );
+
+        logger.success("Dev guild commands deployed.");
+
+        log(
+            "SUCCESS",
+            "Dev Commands Deployed",
+            `**${devCommands.length}** dev commands deployed to guild **${config.devGuildId}**.\n\n` +
+            devCommands.map(c => `• \`${c.name}\``).join("\n")
         );
 
     } catch (err) {
-        logger.error("Failed to deploy slash commands:");
+        logger.error("Failed to deploy commands:");
         console.error(err);
 
         log(
             "ERROR",
-            "Slash Command Deployment Failed",
+            "Command Deployment Failed",
             `\`\`\`${err.message}\`\`\``
         );
     }
