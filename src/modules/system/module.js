@@ -3,6 +3,7 @@
 const { start } = require("./healthJob");
 const logger = require("../../core/logger");
 const { log } = require("../../core/discordLogger");
+const config = require("../../core/config");
 
 module.exports = {
     /**
@@ -13,8 +14,10 @@ module.exports = {
         logger.info("[system] Initializing system module…");
 
         try {
+            const channelId = config.devHealthChannelId;
+            const channel = await client.channels.fetch(channelId).catch(() => null);
             // Start the auto-updating health monitor
-            await start(client);
+            await start(client, channel);
 
             logger.success("[system] Health monitor started.");
             log("SUCCESS", "System Module", "Health monitor started successfully.");
@@ -33,9 +36,6 @@ module.exports = {
         return true;
     },
 
-    /**
-     * Optional shutdown handler (future-proofing)
-     */
     async unload() {
         logger.info("[system] System module unloaded.");
     }
