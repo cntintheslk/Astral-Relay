@@ -13,22 +13,21 @@ async function deployCommands(client) {
 
     try {
         logger.info(
-            `Deploying ${commands.length} slash commands to guild ${config.devGuildId}...`
+            `Deploying ${commands.length} slash commands...`
         );
 
         await rest.put(
-            Routes.applicationGuildCommands(client.user.id, config.devGuildId),
+            Routes.applicationCommands(client.user.id),
             { body: commands }
         );
 
-        logger.success(`Guild slash command deployment complete.`);
+        logger.success(`Global slash command deployment complete.`);
 
         // Discord log
         log(
             "SUCCESS",
             "Slash Commands Deployed",
-            `**${commands.length}** commands deployed to the development guild.\n` +
-            `Guild ID: \`${config.devGuildId}\`\n\n` +
+            `**${commands.length}** commands deployed to the globally\n` +
             `**Commands:**\n${commandNames}`
         );
 
