@@ -11,3 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
   last_seen   INTEGER NOT NULL,
   notes       TEXT
 );
+
+CREATE TABLE IF NOT EXISTS system_health (
+    message_id TEXT
+);
