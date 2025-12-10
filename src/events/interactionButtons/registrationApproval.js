@@ -2,7 +2,7 @@
 
 const db = require("../../core/database");
 const logger = require("../../core/logger");
-const { getSettings } = require("../modules/registration/settingsStore");
+const { getSettings } = require("../../modules/registration/settingsStore");
 const config = require("../../core/config");
 const { log } = require("../../core/discordLogger");
 
