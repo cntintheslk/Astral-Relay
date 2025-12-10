@@ -4,6 +4,8 @@ const logger = require("../core/logger");
 const { setLogChannel, log } = require("../core/discordLogger");
 const config = require("../core/config");
 const { loadAllModules } = require("../core/moduleRegistry");
+const loadCommands = require("../handlers/commands");
+const deployCommands = require("../handlers/commandDeployer");
 
 module.exports = {
     name: "ready",
@@ -32,6 +34,9 @@ module.exports = {
         logger.info(`Node Version: ${process.version}`);
 
                 // 🔹 Load all modules AFTER logging is up
+        loadCommands(client);
+        await deployCommands(client);
+        
         await loadAllModules(client);
     },
 };
