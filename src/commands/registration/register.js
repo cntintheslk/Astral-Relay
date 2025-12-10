@@ -64,13 +64,7 @@ module.exports = {
         }
 
         // Map rank -> role field
-        const roleMap = {
-            R1: settings.role_r1,
-            R2: settings.role_r2,
-            R3: settings.role_r3,
-            R4: settings.role_r4,
-            R5: settings.role_r5,
-        };
+        const roleMap = settings.roles;
 
         const targetRoleId = roleMap[rank];
 
