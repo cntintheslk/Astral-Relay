@@ -1,6 +1,6 @@
 // src/modules/system/module.js
 
-const { startHealthJob } = require("./healthJob");
+const { start } = require("./healthJob");
 const logger = require("../../core/logger");
 const { log } = require("../../core/discordLogger");
 
@@ -14,7 +14,7 @@ module.exports = {
 
         try {
             // Start the auto-updating health monitor
-            await startHealthJob(client);
+            await start(client);
 
             logger.success("[system] Health monitor started.");
             log("SUCCESS", "System Module", "Health monitor started successfully.");
