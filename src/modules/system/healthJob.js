@@ -8,7 +8,7 @@ let healthChannel = null;
 const HEALTH_INTERVAL = 15000; // 15 seconds
 
 async function startHealthJob(client) {
-    const channelId = process.env.HEALTH_CHANNEL_ID;
+    const channelId = process.env.DEV_HEALTH_CHANNEL_ID;
 
     if (!channelId) {
         console.warn("[HEALTH] No HEALTH_CHANNEL_ID set — job disabled.");

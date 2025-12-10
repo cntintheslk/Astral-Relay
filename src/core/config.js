@@ -7,5 +7,5 @@ module.exports = {
   devGuildId: process.env.DEV_GUILD_ID,
   ownerIds: process.env.OWNER_IDS ? process.env.OWNER_IDS.split(",") : [],
   logLevel: process.env.LOG_LEVEL || "INFO",
-
+  devHealthChannelId: process.env.DEV_HEALTH_CHANNEL_ID
 };
