@@ -15,7 +15,7 @@ const getRegistrationInfo = require("../../../modules/loa/getRegistrationInfo");
 const { randomUUID } = require("crypto");
 
 module.exports = {
-    category: "dev",
+    category: "production",
 
     data: new SlashCommandBuilder()
         .setName("loa")
