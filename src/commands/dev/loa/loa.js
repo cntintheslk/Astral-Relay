@@ -6,6 +6,7 @@ const {
     ButtonBuilder,
     ButtonStyle,
     ComponentType,
+    MessageFlags
 } = require("discord.js");
 
 const db = require("../../../core/database");
@@ -117,7 +118,7 @@ module.exports = {
                 )
         )
 
-        // /loa config approval
+        // /loa config approval + role
         .addSubcommandGroup(group =>
             group
                 .setName("config")
@@ -137,9 +138,18 @@ module.exports = {
                                 )
                         )
                 )
+                .addSubcommand(sub =>
+                    sub
+                        .setName("role")
+                        .setDescription("Set the LOA role to assign during active leave.")
+                        .addRoleOption(opt =>
+                            opt.setName("role").setDescription("Selected LOA Role").setRequired(true)
+                        )
+                )
         ),
 
     async execute(interaction) {
+
         const guildId = interaction.guild.id;
         const userId = interaction.user.id;
         const sub = interaction.options.getSubcommand();
@@ -159,7 +169,7 @@ module.exports = {
             if (days <= 0) {
                 return interaction.reply({
                     content: "Days must be at least 1.",
-                    ephemeral: true,
+                    flags: MessageFlags.Ephemeral,
                 });
             }
 
@@ -167,14 +177,15 @@ module.exports = {
             const end = now + days * 86400;
 
             let settings = db
-                .prepare("SELECT require_approval FROM loa_settings WHERE guild_id = ?")
+                .prepare("SELECT require_approval, loa_role_id FROM loa_settings WHERE guild_id = ?")
                 .get(guildId);
 
             if (!settings) {
                 db.prepare(
                     "INSERT INTO loa_settings (guild_id, require_approval, updated_at) VALUES (?, 0, ?)"
                 ).run(guildId, now);
-                settings = { require_approval: 0 };
+
+                settings = { require_approval: 0, loa_role_id: null };
             }
 
             const requiresApproval = settings.require_approval === 1;
@@ -200,20 +211,39 @@ module.exports = {
                 now
             );
 
+            // Auto-approval → assign LOA role + DM
             if (!requiresApproval) {
                 interaction.client.emit("loaUpdate", guildId);
+
+                // Assign LOA Role
+                if (settings.loa_role_id) {
+                    try {
+                        const member = await interaction.guild.members.fetch(userId);
+                        await member.roles.add(settings.loa_role_id);
+                    } catch {}
+                }
+
+                // DM User
+                try {
+                    const member = await interaction.guild.members.fetch(userId);
+                    await member.send(
+                        `Your LOA has been **approved automatically**.\n` +
+                        `**Reason:** ${reason}\n` +
+                        `**Duration:** <t:${start}:d> → <t:${end}:d>`
+                    );
+                } catch {}
             }
 
             return interaction.reply({
                 content: requiresApproval
                     ? "Your LOA request has been submitted and is **pending approval**."
                     : "Your LOA has been **auto-approved** and added to the board.",
-                ephemeral: true,
+                flags: MessageFlags.Ephemeral,
             });
         }
 
         // ----------------------------------------------------------------------
-        // /loa cancel
+        // /loa cancel → remove LOA role
         // ----------------------------------------------------------------------
         if (sub === "cancel") {
             const loa = db
@@ -225,10 +255,11 @@ module.exports = {
             if (!loa) {
                 return interaction.reply({
                     content: "You do not have an active or pending LOA to cancel.",
-                    ephemeral: true,
+                    flags: MessageFlags.Ephemeral,
                 });
             }
 
+            // Move to history
             db.prepare(
                 `INSERT INTO loa_history (
                     id, guild_id, user_id, reason, start_date, end_date,
@@ -249,16 +280,28 @@ module.exports = {
 
             db.prepare("DELETE FROM loas WHERE id = ?").run(loa.id);
 
+            // Remove LOA Role
+            const settings = db.prepare(
+                "SELECT loa_role_id FROM loa_settings WHERE guild_id = ?"
+            ).get(guildId);
+
+            if (settings?.loa_role_id) {
+                try {
+                    const member = await interaction.guild.members.fetch(userId);
+                    await member.roles.remove(settings.loa_role_id);
+                } catch {}
+            }
+
             interaction.client.emit("loaUpdate", guildId);
 
             return interaction.reply({
                 content: "Your LOA has been **cancelled**.",
-                ephemeral: true,
+                flags: MessageFlags.Ephemeral,
             });
         }
 
         // ----------------------------------------------------------------------
-        // /loa view (active LOAs)
+        // /loa view (active LOAs) — unchanged
         // ----------------------------------------------------------------------
         if (sub === "view" && !group) {
             const loas = db
@@ -273,7 +316,7 @@ module.exports = {
 
             if (loas.length === 0) {
                 embed.setDescription("*There are no active LOAs.*");
-                return interaction.reply({ embeds: [embed], ephemeral: true });
+                return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
             }
 
             let desc = "";
@@ -290,18 +333,17 @@ module.exports = {
             }
 
             embed.setDescription(desc);
-
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
         // ----------------------------------------------------------------------
-        // /loa pending (with pagination)
+        // /loa pending (with pagination) — unchanged
         // ----------------------------------------------------------------------
         if (sub === "pending" && !group) {
             if (!isStaff()) {
                 return interaction.reply({
                     content: "You do not have permission to view pending LOAs.",
-                    ephemeral: true,
+                    flags: MessageFlags.Ephemeral,
                 });
             }
 
@@ -318,7 +360,7 @@ module.exports = {
 
             if (pending.length === 0) {
                 embed.setDescription("*There are no LOAs currently awaiting approval.*");
-                return interaction.reply({ embeds: [embed], ephemeral: true });
+                return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
             }
 
             // Pagination setup
@@ -392,7 +434,7 @@ module.exports = {
             const message = await interaction.reply({
                 embeds: [buildPageEmbed(currentPage)],
                 components: [makeRow(currentPage)],
-                ephemeral: true,
+                flags: MessageFlags.Ephemeral,
                 fetchReply: true,
             });
 
@@ -431,7 +473,7 @@ module.exports = {
         }
 
         // ----------------------------------------------------------------------
-        // /loa status
+        // /loa status — unchanged
         // ----------------------------------------------------------------------
         if (sub === "status" && !group) {
             const loa = db
@@ -443,7 +485,7 @@ module.exports = {
             if (!loa) {
                 return interaction.reply({
                     content: "You do not currently have an LOA.",
-                    ephemeral: true,
+                    flags: MessageFlags.Ephemeral,
                 });
             }
 
@@ -463,17 +505,17 @@ module.exports = {
                 )
                 .setTimestamp();
 
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
         // ----------------------------------------------------------------------
-        // /loa approve
+        // /loa approve → unchanged
         // ----------------------------------------------------------------------
         if (sub === "approve" && !group) {
             if (!isStaff()) {
                 return interaction.reply({
                     content: "You do not have permission to approve LOAs.",
-                    ephemeral: true,
+                    flags: MessageFlags.Ephemeral,
                 });
             }
 
@@ -488,7 +530,7 @@ module.exports = {
             if (!loa) {
                 return interaction.reply({
                     content: "No pending LOA found for that user.",
-                    ephemeral: true,
+                    flags: MessageFlags.Ephemeral,
                 });
             }
 
@@ -498,12 +540,33 @@ module.exports = {
 
             interaction.client.emit("loaUpdate", guildId);
 
+            // Send DM to user
+            try {
+                const member = await interaction.guild.members.fetch(target.id);
+                await member.send(
+                    `Your LOA request has been **approved**.\n` +
+                    `**Reason:** ${loa.reason}\n` +
+                    `**Duration:** <t:${loa.start_date}:d> → <t:${loa.end_date}:d>`
+                );
+            } catch {}
+
+            // Assign LOA role
+            const settings = db
+                .prepare("SELECT loa_role_id FROM loa_settings WHERE guild_id = ?")
+                .get(guildId);
+
+            if (settings?.loa_role_id) {
+                try {
+                    const member = await interaction.guild.members.fetch(target.id);
+                    await member.roles.add(settings.loa_role_id);
+                } catch {}
+            }
+
             return interaction.reply({
                 content: `Approved LOA for **${target.tag}**.`,
-                ephemeral: true,
+                flags: MessageFlags.Ephemeral,
             });
         }
-
         // ----------------------------------------------------------------------
         // /loa deny
         // ----------------------------------------------------------------------
@@ -511,12 +574,12 @@ module.exports = {
             if (!isStaff()) {
                 return interaction.reply({
                     content: "You do not have permission to deny LOAs.",
-                    ephemeral: true,
+                    flags: MessageFlags.Ephemeral,
                 });
             }
 
             const target = interaction.options.getUser("user");
-            const denyReason = interaction.options.getString("reason");
+            const reason = interaction.options.getString("reason");
 
             const loa = db
                 .prepare(
@@ -527,10 +590,11 @@ module.exports = {
             if (!loa) {
                 return interaction.reply({
                     content: "No pending LOA found for that user.",
-                    ephemeral: true,
+                    flags: MessageFlags.Ephemeral,
                 });
             }
 
+            // Add to history
             db.prepare(
                 `INSERT INTO loa_history (
                     id, guild_id, user_id, reason, start_date, end_date,
@@ -549,13 +613,21 @@ module.exports = {
                 "denied"
             );
 
+            // Remove pending LOA
             db.prepare("DELETE FROM loas WHERE id = ?").run(loa.id);
 
-            interaction.client.emit("loaUpdate", guildId);
+            // Send DM to the denied user
+            try {
+                const member = await interaction.guild.members.fetch(target.id);
+                await member.send(
+                    `Your LOA request has been **denied**.\n` +
+                    `**Reviewer's Reason:** ${reason}`
+                );
+            } catch {}
 
             return interaction.reply({
-                content: `Denied LOA for **${target.tag}**.\nReason: *${denyReason}*`,
-                ephemeral: true,
+                content: `Denied LOA for **${target.tag}**.`,
+                flags: MessageFlags.Ephemeral,
             });
         }
 
@@ -566,27 +638,33 @@ module.exports = {
             if (!isStaff()) {
                 return interaction.reply({
                     content: "You do not have permission to configure the LOA board.",
-                    ephemeral: true,
+                    flags: MessageFlags.Ephemeral,
                 });
             }
 
             const channel = interaction.options.getChannel("channel");
+
+            // Push or update board location
+            const existing = db
+                .prepare("SELECT * FROM loa_board WHERE guild_id = ?")
+                .get(guildId);
+
             const embed = renderBoard(guildId);
+            const sent = await channel.send({ embeds: [embed] });
 
-            const msg = await channel.send({ embeds: [embed] });
-
-            db.prepare(
-                `INSERT INTO loa_board (guild_id, channel_id, message_id, updated_at)
-                 VALUES (?, ?, ?, ?)
-                 ON CONFLICT(guild_id) DO UPDATE SET
-                     channel_id = excluded.channel_id,
-                     message_id = excluded.message_id,
-                     updated_at = excluded.updated_at`
-            ).run(guildId, channel.id, msg.id, now);
+            if (existing) {
+                db.prepare(
+                    "UPDATE loa_board SET channel_id = ?, message_id = ?, updated_at = ? WHERE guild_id = ?"
+                ).run(channel.id, sent.id, now, guildId);
+            } else {
+                db.prepare(
+                    "INSERT INTO loa_board (guild_id, channel_id, message_id, updated_at) VALUES (?, ?, ?, ?)"
+                ).run(guildId, channel.id, sent.id, now);
+            }
 
             return interaction.reply({
-                content: "LOA board has been configured.",
-                ephemeral: true,
+                content: "LOA board updated successfully.",
+                flags: MessageFlags.Ephemeral,
             });
         }
 
@@ -597,27 +675,67 @@ module.exports = {
             if (!isStaff()) {
                 return interaction.reply({
                     content: "You do not have permission to configure LOA settings.",
-                    ephemeral: true,
+                    flags: MessageFlags.Ephemeral,
                 });
             }
 
-            const mode = interaction.options.getString("mode");
+            const mode = interaction.options.getString("mode"); // "on" or "off"
             const requireApproval = mode === "on" ? 1 : 0;
 
-            db.prepare(
-                `INSERT INTO loa_settings (guild_id, require_approval, updated_at)
-                 VALUES (?, ?, ?)
-                 ON CONFLICT(guild_id) DO UPDATE SET
-                     require_approval = excluded.require_approval,
-                     updated_at = excluded.updated_at`
-            ).run(guildId, requireApproval, now);
+            const exists = db
+                .prepare("SELECT guild_id FROM loa_settings WHERE guild_id = ?")
+                .get(guildId);
+
+            if (exists) {
+                db.prepare(
+                    "UPDATE loa_settings SET require_approval = ?, updated_at = ? WHERE guild_id = ?"
+                ).run(requireApproval, now, guildId);
+            } else {
+                db.prepare(
+                    "INSERT INTO loa_settings (guild_id, require_approval, updated_at) VALUES (?, ?, ?)"
+                ).run(guildId, requireApproval, now);
+            }
 
             return interaction.reply({
-                content: `LOA approval mode set to **${
-                    mode === "on" ? "Approval Required" : "Auto-Approve"
-                }**.`,
-                ephemeral: true,
+                content:
+                    requireApproval === 1
+                        ? "LOA approval is now **required**."
+                        : "LOA approval is now **disabled** (auto-approve).",
+                flags: MessageFlags.Ephemeral,
+            });
+        }
+
+        // ----------------------------------------------------------------------
+        // /loa config role → set LOA role
+        // ----------------------------------------------------------------------
+        if (group === "config" && sub === "role") {
+            if (!isStaff()) {
+                return interaction.reply({
+                    content: "You do not have permission to configure LOA settings.",
+                    flags: MessageFlags.Ephemeral,
+                });
+            }
+
+            const role = interaction.options.getRole("role");
+
+            const exists = db
+                .prepare("SELECT guild_id FROM loa_settings WHERE guild_id = ?")
+                .get(guildId);
+
+            if (exists) {
+                db.prepare(
+                    "UPDATE loa_settings SET loa_role_id = ?, updated_at = ? WHERE guild_id = ?"
+                ).run(role.id, now, guildId);
+            } else {
+                db.prepare(
+                    "INSERT INTO loa_settings (guild_id, loa_role_id, updated_at) VALUES (?, ?, ?)"
+                ).run(guildId, role.id, now);
+            }
+
+            return interaction.reply({
+                content: `LOA role set to **${role.name}**.`,
+                flags: MessageFlags.Ephemeral,
             });
         }
     },
-};
+};      
