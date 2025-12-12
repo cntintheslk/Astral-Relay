@@ -6,7 +6,7 @@ const { log } = require("../core/discordLogger");
 async function deployCommands(client) {
     const allCommands = Array.from(client.commands.values());
 
-    // Split commands by folder/category
+    // Split commands by category
     const globalCommands = allCommands
         .filter(cmd => cmd.category === "global")
         .map(cmd => cmd.data.toJSON());
@@ -18,43 +18,46 @@ async function deployCommands(client) {
     const rest = new REST({ version: "10" }).setToken(config.token);
 
     try {
-        // -----------------------------
-        //  GLOBAL COMMAND DEPLOY
-        // -----------------------------
-        logger.info(`Deploying ${globalCommands.length} GLOBAL commands...`);
+        if (config.environment === "production") {
+            // ======================================================
+            //  PRODUCTION MODE  →  GLOBAL COMMANDS ONLY
+            // ======================================================
+            logger.info(`(PROD) Deploying ${globalCommands.length} GLOBAL commands...`);
 
-        await rest.put(
-            Routes.applicationCommands(client.user.id),
-            { body: globalCommands }
-        );
+            await rest.put(
+                Routes.applicationCommands(client.user.id),
+                { body: globalCommands }
+            );
 
-        logger.success("Global commands deployed.");
+            logger.success("(PROD) Global commands deployed.");
 
-        log(
-            "SUCCESS",
-            "Global Commands Deployed",
-            `**${globalCommands.length}** global commands deployed.\n\n` +
-            globalCommands.map(c => `• \`${c.name}\``).join("\n")
-        );
+            log(
+                "SUCCESS",
+                "Global Commands Deployed",
+                `**${globalCommands.length}** global commands deployed.\n\n` +
+                globalCommands.map(c => `• \`${c.name}\``).join("\n")
+            );
 
-        // -----------------------------
-        //  DEV GUILD COMMAND DEPLOY
-        // -----------------------------
-        logger.info(`Deploying ${devCommands.length} DEV commands to guild ${config.devGuildId}...`);
+        } else {
+            // ======================================================
+            //  DEVELOPMENT MODE  →  DEV GUILD COMMANDS ONLY
+            // ======================================================
+            logger.info(`(DEV) Deploying ${devCommands.length} DEV commands to guild ${config.devGuildId}...`);
 
-        await rest.put(
-            Routes.applicationGuildCommands(client.user.id, config.devGuildId),
-            { body: devCommands }
-        );
+            await rest.put(
+                Routes.applicationGuildCommands(client.user.id, config.devGuildId),
+                { body: devCommands }
+            );
 
-        logger.success("Dev guild commands deployed.");
+            logger.success("(DEV) Dev guild commands deployed.");
 
-        log(
-            "SUCCESS",
-            "Dev Commands Deployed",
-            `**${devCommands.length}** dev commands deployed to guild **${config.devGuildId}**.\n\n` +
-            devCommands.map(c => `• \`${c.name}\``).join("\n")
-        );
+            log(
+                "SUCCESS",
+                "Dev Commands Deployed",
+                `**${devCommands.length}** dev commands deployed to guild **${config.devGuildId}**.\n\n` +
+                devCommands.map(c => `• \`${c.name}\``).join("\n")
+            );
+        }
 
     } catch (err) {
         logger.error("Failed to deploy commands:");
