@@ -1,66 +1,100 @@
 const db = require("../../core/database");
+const renderBoard = require("./renderBoard");
+const { randomUUID } = require("crypto");
 
-module.exports = function initLOAModule(client) {
-    console.log("[module:loa] Starting LOA module...");
+module.exports = {
+    name: "loa",
 
-    setInterval(async () => {
-        const now = Math.floor(Date.now() / 1000);
+    init(client) {
+        console.log("[module:loa] Initializing LOA module...");
 
-        // Example fetch:
-        // const rows = db.prepare("SELECT * FROM loas").all();
+        setInterval(async () => {
+            const now = Math.floor(Date.now() / 1000);
 
-        // If using client inside this loop, client MUST be passed properly
-        // const user = await client.users.fetch("123").catch(() => null);
+            // ==================================================
+            // 24 HOUR REMINDER
+            // ==================================================
+            const endingSoon = db.prepare(`
+                SELECT * FROM loas
+                WHERE status = 'active'
+                AND end_date BETWEEN ? AND ?
+            `).all(now + 86400, now + 86460);
 
-    }, 60 * 1000);
+            for (const loa of endingSoon) {
+                try {
+                    const user = await client.users.fetch(loa.user_id);
+                    await user.send(
+                        `⏳ **LOA Reminder**\n\nYour LOA will end in **24 hours**.\n` +
+                        `**Reason:** ${loa.reason}\n` +
+                        `**Ends:** <t:${loa.end_date}:F>`
+                    );
+                } catch {}
+            }
 
-    console.log("[module:loa] Initialized");
+            // ==================================================
+            // LOA EXPIRY HANDLER
+            // ==================================================
+            const expired = db.prepare(`
+                SELECT * FROM loas
+                WHERE status = 'active'
+                AND end_date <= ?
+            `).all(now);
+
+            for (const loa of expired) {
+                // Move to history
+                db.prepare(`
+                    INSERT INTO loa_history (
+                        id, guild_id, user_id, reason,
+                        start_date, end_date,
+                        resolved_at, resolved_by,
+                        resolution, status
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `).run(
+                    randomUUID(),
+                    loa.guild_id,
+                    loa.user_id,
+                    loa.reason,
+                    loa.start_date,
+                    loa.end_date,
+                    now,
+                    "system",
+                    "expired",
+                    "expired"
+                );
+
+                // Remove from active table
+                db.prepare(
+                    `DELETE FROM loas WHERE id = ?`
+                ).run(loa.id);
+
+                // Remove LOA role if configured
+                const settings = db.prepare(
+                    "SELECT loa_role_id FROM loa_settings WHERE guild_id = ?"
+                ).get(loa.guild_id);
+
+                if (settings?.loa_role_id) {
+                    try {
+                        const guild = await client.guilds.fetch(loa.guild_id);
+                        const member = await guild.members.fetch(loa.user_id);
+                        await member.roles.remove(settings.loa_role_id);
+                    } catch {}
+                }
+
+                // DM user
+                try {
+                    const user = await client.users.fetch(loa.user_id);
+                    await user.send(
+                        `🌅 **Your LOA has ended. Welcome back!**\n` +
+                        `**Ended:** <t:${loa.end_date}:F>`
+                    );
+                } catch {}
+
+                // Update board
+                client.emit("loaUpdate", loa.guild_id);
+            }
+
+        }, 60 * 1000); // every minute
+
+        console.log("[module:loa] LOA scheduler active (60s)");
+    }
 };
-
-// Reminder checks every minute
-setInterval(async () => {
-    const now = Math.floor(Date.now() / 1000);
-
-    // LOAs starting now
-    const starting = db.prepare(`
-        SELECT * FROM loas
-        WHERE status='approved'
-        AND start_date <= ? AND start_date > ? - 60
-    `).all(now, now);
-
-    for (const loa of starting) {
-        const user = await client.users.fetch(loa.user_id).catch(() => null);
-        if (user) {
-            user.send(`🌙 **Your LOA has now begun.**\nReason: ${loa.reason}`).catch(() => {});
-        }
-    }
-
-    // LOAs ending soon (24h)
-    const endingSoon = db.prepare(`
-        SELECT * FROM loas
-        WHERE status='approved'
-        AND end_date BETWEEN ? AND ?
-    `).all(now + 86400, now + 86460);
-
-    for (const loa of endingSoon) {
-        const user = await client.users.fetch(loa.user_id).catch(() => null);
-        if (user) {
-            user.send(`⏳ **Your LOA ends in 24 hours.**`).catch(() => {});
-        }
-    }
-
-    // LOAs ending now
-    const endingNow = db.prepare(`
-        SELECT * FROM loas
-        WHERE status='approved'
-        AND end_date <= ? AND end_date > ? - 60
-    `).all(now, now);
-
-    for (const loa of endingNow) {
-        const user = await client.users.fetch(loa.user_id).catch(() => null);
-        if (user) {
-            user.send(`🌅 **Your LOA has ended. Welcome back!**`).catch(() => {});
-        }
-    }
-
-}, 60 * 1000);
