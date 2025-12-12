@@ -1,5 +1,21 @@
 const db = require("../../core/database");
 
+module.exports = function initLOAModule(client) {
+    console.log("[module:loa] Starting LOA module...");
+
+    setInterval(async () => {
+        const now = Math.floor(Date.now() / 1000);
+
+        // Example fetch:
+        // const rows = db.prepare("SELECT * FROM loas").all();
+
+        // If using client inside this loop, client MUST be passed properly
+        // const user = await client.users.fetch("123").catch(() => null);
+
+    }, 60 * 1000);
+
+    console.log("[module:loa] Initialized");
+};
 
 // Reminder checks every minute
 setInterval(async () => {

@@ -1,2 +1,0 @@
-ALTER TABLE loas ADD COLUMN approved_at INTEGER;
-ALTER TABLE loas ADD COLUMN approved_by TEXT;
