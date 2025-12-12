@@ -8,5 +8,5 @@ module.exports = {
   ownerIds: process.env.OWNER_IDS ? process.env.OWNER_IDS.split(",") : [],
   logLevel: process.env.LOG_LEVEL || "INFO",
   devHealthChannelId: process.env.DEV_HEALTH_CHANNEL_ID,
-  environement: process.env.ENVIRONMENT
+  environment: process.env.ENVIRONMENT
 };
