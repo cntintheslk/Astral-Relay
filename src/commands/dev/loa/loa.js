@@ -3,10 +3,11 @@ const {
     PermissionFlagsBits,
     EmbedBuilder,
 } = require("discord.js");
-const { v4: uuidv4 } = require("uuid");
+
 const db = require("../../../core/database");
-const getRegistrationInfo = require("../../../modules/loa/getRegistrationInfo");
 const renderBoard = require("../../../modules/loa/renderBoard");
+const getRegistrationInfo = require("../../../modules/loa/getRegistrationInfo");
+const { randomUUID } = require("crypto");
 
 module.exports = {
     category: "dev",
@@ -17,76 +18,88 @@ module.exports = {
 
         // /loa apply
         .addSubcommand(sub =>
-            sub.setName("apply")
+            sub
+                .setName("apply")
                 .setDescription("Submit a Leave of Absence request.")
                 .addStringOption(opt =>
-                    opt.setName("reason")
+                    opt
+                        .setName("reason")
                         .setDescription("Reason for your LOA.")
                         .setRequired(true)
                 )
                 .addIntegerOption(opt =>
-                    opt.setName("days")
-                        .setDescription("Number of days you will be away.")
+                    opt
+                        .setName("days")
+                        .setDescription("How many days you will be away.")
                         .setRequired(true)
                 )
         )
 
         // /loa cancel
         .addSubcommand(sub =>
-            sub.setName("cancel")
+            sub
+                .setName("cancel")
                 .setDescription("Cancel your current LOA.")
         )
 
         // /loa view
         .addSubcommand(sub =>
-            sub.setName("view")
+            sub
+                .setName("view")
                 .setDescription("View all active LOAs.")
         )
 
         // /loa status
         .addSubcommand(sub =>
-            sub.setName("status")
+            sub
+                .setName("status")
                 .setDescription("View your current LOA status.")
         )
 
         // /loa approve
         .addSubcommand(sub =>
-            sub.setName("approve")
+            sub
+                .setName("approve")
                 .setDescription("Approve a pending LOA.")
                 .addUserOption(opt =>
-                    opt.setName("user")
+                    opt
+                        .setName("user")
                         .setDescription("User whose LOA you want to approve.")
                         .setRequired(true)
                 )
-                .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
         )
 
         // /loa deny
         .addSubcommand(sub =>
-            sub.setName("deny")
+            sub
+                .setName("deny")
                 .setDescription("Deny a pending LOA.")
                 .addUserOption(opt =>
-                    opt.setName("user")
+                    opt
+                        .setName("user")
                         .setDescription("User whose LOA you want to deny.")
                         .setRequired(true)
                 )
                 .addStringOption(opt =>
-                    opt.setName("reason")
+                    opt
+                        .setName("reason")
                         .setDescription("Reason for denial.")
                         .setRequired(true)
                 )
-                .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
         )
 
         // /loa board set
         .addSubcommandGroup(group =>
-            group.setName("board")
+            group
+                .setName("board")
                 .setDescription("Configure the LOA board.")
                 .addSubcommand(sub =>
-                    sub.setName("set")
+                    sub
+                        .setName("set")
                         .setDescription("Set or update the LOA board channel.")
                         .addChannelOption(opt =>
-                            opt.setName("channel")
+                            opt
+                                .setName("channel")
                                 .setDescription("Channel to post the LOA board.")
                                 .setRequired(true)
                         )
@@ -95,13 +108,16 @@ module.exports = {
 
         // /loa config approval
         .addSubcommandGroup(group =>
-            group.setName("config")
+            group
+                .setName("config")
                 .setDescription("Configure LOA behaviour.")
                 .addSubcommand(sub =>
-                    sub.setName("approval")
-                        .setDescription("Enable or disable LOA approval requirement.")
+                    sub
+                        .setName("approval")
+                        .setDescription("Enable or disable LOA approval.")
                         .addStringOption(opt =>
-                            opt.setName("mode")
+                            opt
+                                .setName("mode")
                                 .setDescription("Approval mode")
                                 .setRequired(true)
                                 .addChoices(
@@ -113,19 +129,18 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        const sub = interaction.options.getSubcommand();
-        const group = interaction.options.getSubcommandGroup(false);
         const guildId = interaction.guild.id;
         const userId = interaction.user.id;
+        const sub = interaction.options.getSubcommand();
+        const group = interaction.options.getSubcommandGroup(false);
         const now = Math.floor(Date.now() / 1000);
 
         const isStaff = () =>
-            interaction.memberPermissions &&
-            interaction.memberPermissions.has(PermissionFlagsBits.ManageGuild);
+            interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild);
 
-        // ------------------------------------------------------------------
+        // ----------------------------------------------------------------------
         // /loa apply
-        // ------------------------------------------------------------------
+        // ----------------------------------------------------------------------
         if (sub === "apply") {
             const reason = interaction.options.getString("reason");
             const days = interaction.options.getInteger("days");
@@ -141,28 +156,26 @@ module.exports = {
             const end = now + days * 86400;
 
             let settings = db
-                .prepare(`SELECT require_approval FROM loa_settings WHERE guild_id = ?`)
+                .prepare("SELECT require_approval FROM loa_settings WHERE guild_id = ?")
                 .get(guildId);
 
             if (!settings) {
-                db.prepare(`
-                    INSERT INTO loa_settings (guild_id, require_approval, updated_at)
-                    VALUES (?, 0, ?)
-                `).run(guildId, now);
+                db.prepare(
+                    "INSERT INTO loa_settings (guild_id, require_approval, updated_at) VALUES (?, 0, ?)"
+                ).run(guildId, now);
                 settings = { require_approval: 0 };
             }
 
             const requiresApproval = settings.require_approval === 1;
             const status = requiresApproval ? "pending" : "active";
-            const loaId = uuidv4();
+            const loaId = randomUUID();
 
-            db.prepare(`
-                INSERT INTO loas (
+            db.prepare(
+                `INSERT INTO loas (
                     id, guild_id, user_id, reason, start_date, end_date,
-                    status, submitted_at, updated_at
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(
+                    status, submitted_at, approved_at, approved_by, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ).run(
                 loaId,
                 guildId,
                 userId,
@@ -171,40 +184,32 @@ module.exports = {
                 end,
                 status,
                 now,
+                requiresApproval ? null : now,
+                requiresApproval ? null : "system",
                 now
             );
 
             if (!requiresApproval) {
-                db.prepare(`
-                    UPDATE loas
-                    SET approved_at = ?, approved_by = ?, status = 'active', updated_at = ?
-                    WHERE id = ?
-                `).run(now, "system", now, loaId);
-
                 interaction.client.emit("loaUpdate", guildId);
             }
 
             return interaction.reply({
                 content: requiresApproval
                     ? "Your LOA request has been submitted and is **pending approval**."
-                    : "Your LOA has been **approved** and added to the board.",
+                    : "Your LOA has been **auto-approved** and added to the board.",
                 ephemeral: true,
             });
         }
 
-        // ------------------------------------------------------------------
+        // ----------------------------------------------------------------------
         // /loa cancel
-        // ------------------------------------------------------------------
+        // ----------------------------------------------------------------------
         if (sub === "cancel") {
-            const loa = db.prepare(`
-                SELECT *
-                FROM loas
-                WHERE guild_id = ?
-                  AND user_id = ?
-                  AND status IN ('pending','active')
-                ORDER BY submitted_at DESC
-                LIMIT 1
-            `).get(guildId, userId);
+            const loa = db
+                .prepare(
+                    "SELECT * FROM loas WHERE guild_id = ? AND user_id = ? AND status IN ('pending','active') ORDER BY submitted_at DESC LIMIT 1"
+                )
+                .get(guildId, userId);
 
             if (!loa) {
                 return interaction.reply({
@@ -213,16 +218,13 @@ module.exports = {
                 });
             }
 
-            const historyId = uuidv4();
-
-            db.prepare(`
-                INSERT INTO loa_history (
+            db.prepare(
+                `INSERT INTO loa_history (
                     id, guild_id, user_id, reason, start_date, end_date,
                     resolved_at, resolved_by, resolution, status
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(
-                historyId,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ).run(
+                randomUUID(),
                 guildId,
                 userId,
                 loa.reason,
@@ -234,7 +236,7 @@ module.exports = {
                 "cancelled"
             );
 
-            db.prepare(`DELETE FROM loas WHERE id = ?`).run(loa.id);
+            db.prepare("DELETE FROM loas WHERE id = ?").run(loa.id);
 
             interaction.client.emit("loaUpdate", guildId);
 
@@ -244,21 +246,19 @@ module.exports = {
             });
         }
 
-        // ------------------------------------------------------------------
+        // ----------------------------------------------------------------------
         // /loa view
-        // ------------------------------------------------------------------
-        if (sub === "view" && !group) {
-            const loas = db.prepare(`
-                SELECT *
-                FROM loas
-                WHERE guild_id = ?
-                  AND status = 'active'
-                ORDER BY end_date ASC
-            `).all(guildId);
+        // ----------------------------------------------------------------------
+        if (sub === "view") {
+            const loas = db
+                .prepare(
+                    "SELECT * FROM loas WHERE guild_id = ? AND status = 'active' ORDER BY end_date ASC"
+                )
+                .all(guildId);
 
             const embed = new EmbedBuilder()
-                .setTitle("📋 Active LOAs")
-                .setColor(0x8c52ff);
+                .setColor(0x8c52ff)
+                .setTitle("📋 Active LOAs");
 
             if (loas.length === 0) {
                 embed.setDescription("*There are no active LOAs.*");
@@ -273,12 +273,9 @@ module.exports = {
                     ? `**${reg.ign}** (${reg.rank})`
                     : `<@${loa.user_id}>`;
 
-                const start = `<t:${loa.start_date}:d>`;
-                const end = `<t:${loa.end_date}:d>`;
-
                 desc += `${name}\n`;
-                desc += `Reason: *${loa.reason || "N/A"}*\n`;
-                desc += `Duration: ${start} → ${end}\n\n`;
+                desc += `Reason: *${loa.reason}*\n`;
+                desc += `Duration: <t:${loa.start_date}:d> → <t:${loa.end_date}:d>\n\n`;
             }
 
             embed.setDescription(desc);
@@ -286,18 +283,15 @@ module.exports = {
             return interaction.reply({ embeds: [embed], ephemeral: true });
         }
 
-        // ------------------------------------------------------------------
+        // ----------------------------------------------------------------------
         // /loa status
-        // ------------------------------------------------------------------
+        // ----------------------------------------------------------------------
         if (sub === "status") {
-            const loa = db.prepare(`
-                SELECT *
-                FROM loas
-                WHERE guild_id = ?
-                  AND user_id = ?
-                ORDER BY submitted_at DESC
-                LIMIT 1
-            `).get(guildId, userId);
+            const loa = db
+                .prepare(
+                    "SELECT * FROM loas WHERE guild_id = ? AND user_id = ? ORDER BY submitted_at DESC LIMIT 1"
+                )
+                .get(guildId, userId);
 
             if (!loa) {
                 return interaction.reply({
@@ -307,7 +301,6 @@ module.exports = {
             }
 
             const reg = getRegistrationInfo(guildId, userId);
-
             const displayName = reg.ign
                 ? `${reg.ign} (${reg.rank})`
                 : interaction.user.tag;
@@ -316,7 +309,7 @@ module.exports = {
                 .setColor(0x8c52ff)
                 .setTitle(`✦ LOA Status — ${displayName}`)
                 .addFields(
-                    { name: "Reason", value: loa.reason || "N/A" },
+                    { name: "Reason", value: loa.reason },
                     { name: "Start", value: `<t:${loa.start_date}:F>` },
                     { name: "End", value: `<t:${loa.end_date}:F>` },
                     { name: "Status", value: `\`${loa.status.toUpperCase()}\`` }
@@ -326,10 +319,10 @@ module.exports = {
             return interaction.reply({ embeds: [embed], ephemeral: true });
         }
 
-        // ------------------------------------------------------------------
+        // ----------------------------------------------------------------------
         // /loa approve
-        // ------------------------------------------------------------------
-        if (sub === "approve" && !group) {
+        // ----------------------------------------------------------------------
+        if (sub === "approve") {
             if (!isStaff()) {
                 return interaction.reply({
                     content: "You do not have permission to approve LOAs.",
@@ -339,15 +332,11 @@ module.exports = {
 
             const target = interaction.options.getUser("user");
 
-            const loa = db.prepare(`
-                SELECT *
-                FROM loas
-                WHERE guild_id = ?
-                  AND user_id = ?
-                  AND status = 'pending'
-                ORDER BY submitted_at DESC
-                LIMIT 1
-            `).get(guildId, target.id);
+            const loa = db
+                .prepare(
+                    "SELECT * FROM loas WHERE guild_id = ? AND user_id = ? AND status = 'pending' LIMIT 1"
+                )
+                .get(guildId, target.id);
 
             if (!loa) {
                 return interaction.reply({
@@ -356,14 +345,9 @@ module.exports = {
                 });
             }
 
-            db.prepare(`
-                UPDATE loas
-                SET status = 'active',
-                    approved_at = ?,
-                    approved_by = ?,
-                    updated_at = ?
-                WHERE id = ?
-            `).run(now, interaction.user.id, now, loa.id);
+            db.prepare(
+                "UPDATE loas SET status = 'active', approved_at = ?, approved_by = ?, updated_at = ? WHERE id = ?"
+            ).run(now, interaction.user.id, now, loa.id);
 
             interaction.client.emit("loaUpdate", guildId);
 
@@ -373,10 +357,10 @@ module.exports = {
             });
         }
 
-        // ------------------------------------------------------------------
+        // ----------------------------------------------------------------------
         // /loa deny
-        // ------------------------------------------------------------------
-        if (sub === "deny" && !group) {
+        // ----------------------------------------------------------------------
+        if (sub === "deny") {
             if (!isStaff()) {
                 return interaction.reply({
                     content: "You do not have permission to deny LOAs.",
@@ -387,15 +371,11 @@ module.exports = {
             const target = interaction.options.getUser("user");
             const denyReason = interaction.options.getString("reason");
 
-            const loa = db.prepare(`
-                SELECT *
-                FROM loas
-                WHERE guild_id = ?
-                  AND user_id = ?
-                  AND status = 'pending'
-                ORDER BY submitted_at DESC
-                LIMIT 1
-            `).get(guildId, target.id);
+            const loa = db
+                .prepare(
+                    "SELECT * FROM loas WHERE guild_id = ? AND user_id = ? AND status = 'pending' LIMIT 1"
+                )
+                .get(guildId, target.id);
 
             if (!loa) {
                 return interaction.reply({
@@ -404,16 +384,13 @@ module.exports = {
                 });
             }
 
-            const historyId = uuidv4();
-
-            db.prepare(`
-                INSERT INTO loa_history (
+            db.prepare(
+                `INSERT INTO loa_history (
                     id, guild_id, user_id, reason, start_date, end_date,
                     resolved_at, resolved_by, resolution, status
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(
-                historyId,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ).run(
+                randomUUID(),
                 guildId,
                 target.id,
                 loa.reason,
@@ -425,7 +402,7 @@ module.exports = {
                 "denied"
             );
 
-            db.prepare(`DELETE FROM loas WHERE id = ?`).run(loa.id);
+            db.prepare("DELETE FROM loas WHERE id = ?").run(loa.id);
 
             interaction.client.emit("loaUpdate", guildId);
 
@@ -435,9 +412,9 @@ module.exports = {
             });
         }
 
-        // ------------------------------------------------------------------
+        // ----------------------------------------------------------------------
         // /loa board set
-        // ------------------------------------------------------------------
+        // ----------------------------------------------------------------------
         if (group === "board" && sub === "set") {
             if (!isStaff()) {
                 return interaction.reply({
@@ -451,24 +428,24 @@ module.exports = {
 
             const msg = await channel.send({ embeds: [embed] });
 
-            db.prepare(`
-                INSERT INTO loa_board (guild_id, channel_id, message_id, updated_at)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT(guild_id) DO UPDATE SET
-                    channel_id = excluded.channel_id,
-                    message_id = excluded.message_id,
-                    updated_at = excluded.updated_at
-            `).run(guildId, channel.id, msg.id, now);
+            db.prepare(
+                `INSERT INTO loa_board (guild_id, channel_id, message_id, updated_at)
+                 VALUES (?, ?, ?, ?)
+                 ON CONFLICT(guild_id) DO UPDATE SET
+                     channel_id = excluded.channel_id,
+                     message_id = excluded.message_id,
+                     updated_at = excluded.updated_at`
+            ).run(guildId, channel.id, msg.id, now);
 
             return interaction.reply({
-                content: "LOA board has been configured/updated.",
+                content: "LOA board has been configured.",
                 ephemeral: true,
             });
         }
 
-        // ------------------------------------------------------------------
+        // ----------------------------------------------------------------------
         // /loa config approval
-        // ------------------------------------------------------------------
+        // ----------------------------------------------------------------------
         if (group === "config" && sub === "approval") {
             if (!isStaff()) {
                 return interaction.reply({
@@ -480,18 +457,19 @@ module.exports = {
             const mode = interaction.options.getString("mode");
             const requireApproval = mode === "on" ? 1 : 0;
 
-            db.prepare(`
-                INSERT INTO loa_settings (guild_id, require_approval, updated_at)
-                VALUES (?, ?, ?)
-                ON CONFLICT(guild_id) DO UPDATE SET
-                    require_approval = excluded.require_approval,
-                    updated_at = excluded.updated_at
-            `).run(guildId, requireApproval, now);
+            db.prepare(
+                `INSERT INTO loa_settings (guild_id, require_approval, updated_at)
+                 VALUES (?, ?, ?)
+                 ON CONFLICT(guild_id) DO UPDATE SET
+                     require_approval = excluded.require_approval,
+                     updated_at = excluded.updated_at`
+            ).run(guildId, requireApproval, now);
 
             return interaction.reply({
                 content: `LOA approval mode set to **${
                     mode === "on" ? "Approval Required" : "Auto-Approve"
                 }**.`,
+                ephemeral: true,
             });
         }
     },
