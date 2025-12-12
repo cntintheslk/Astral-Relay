@@ -1,40 +1,40 @@
 const db = require("../../core/database");
+const getReg = require("./getRegistrationInfo");
 const { EmbedBuilder } = require("discord.js");
 
 module.exports = function renderLoaBoard(guildId) {
     const loas = db.prepare(`
         SELECT * FROM loas
-        WHERE guild_id = ? AND status IN ('approved', 'active')
+        WHERE guild_id = ? AND status IN ('approved','active')
         ORDER BY end_date ASC
     `).all(guildId);
 
     const embed = new EmbedBuilder()
-        .setColor(0x8c52ff) // Astral Purple Accent
         .setTitle("✦ Astral Relay — LOA Board ✦")
-        .setDescription("**Active Leaves of Absence**\nA live overview of all approved LOAs within this guild.\n\u200b")
-        .setThumbnail("https://i.imgur.com/nSgk7zF.png") // (Optional: Replace with your Astral icon)
+        .setColor(0x8c52ff)
+        .setDescription("**Active Leaves of Absence**\n\u200b")
         .setTimestamp()
-        .setFooter({
-            text: "Astral Relay — Operational Status Module",
-            iconURL: "https://i.imgur.com/nSgk7zF.png" // (Optional)
-        });
+        .setFooter({ text: "Astral Relay • Leave of Absence System" });
 
     if (loas.length === 0) {
-        return embed.setDescription(
-            "### ✧ No Active LOAs\n" +
-            "*All personnel are currently active and accounted for.*"
-        );
+        embed.setDescription("### ✧ No Active LOAs\n*All personnel are present.*");
+        return embed;
     }
 
     let desc = "";
 
     for (const loa of loas) {
+        const reg = getReg(guildId, loa.user_id);
+
+        const name = reg.ign
+            ? `**${reg.ign}** (${reg.rank})`
+            : `<@${loa.user_id}>`;
+
         const start = `<t:${loa.start_date}:d>`;
         const end = `<t:${loa.end_date}:d>`;
-        const userTag = `<@${loa.user_id}>`;
-        
+
         desc +=
-`> ✦ **${userTag}**
+`> ✦ ${name}
 > **Reason:** ${loa.reason}
 > **Duration:** ${start} → ${end}
 > **Status:** \`${loa.status.toUpperCase()}\`
@@ -42,10 +42,7 @@ module.exports = function renderLoaBoard(guildId) {
 `;
     }
 
-    embed.addFields({
-        name: "📋 Active LOAs",
-        value: desc
-    });
+    embed.addFields({ name: "📘 Active LOAs", value: desc });
 
     return embed;
 };
