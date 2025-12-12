@@ -192,6 +192,7 @@ module.exports = {
             const status = requiresApproval ? "pending" : "active";
             const loaId = randomUUID();
 
+            // Create LOA entry
             db.prepare(
                 `INSERT INTO loas (
                     id, guild_id, user_id, reason, start_date, end_date,
@@ -211,7 +212,47 @@ module.exports = {
                 now
             );
 
-            // Auto-approval → assign LOA role + DM
+            // ------------------------------------------------------------------
+            // If approval is required, send pending LOA to the board channel
+            // ------------------------------------------------------------------
+            if (requiresApproval) {
+                const board = db
+                    .prepare("SELECT channel_id FROM loa_board WHERE guild_id = ?")
+                    .get(guildId);
+
+                if (board) {
+                    const channel = interaction.guild.channels.cache.get(board.channel_id);
+
+                    if (channel) {
+                        const reg = getRegistrationInfo(guildId, userId);
+
+                        const embed = new EmbedBuilder()
+                            .setColor(0xffc857)
+                            .setTitle("⏳ Pending LOA Request")
+                            .setDescription(
+                                `**User:** ${
+                                    reg?.ign ? `${reg.ign} (${reg.rank})` : `<@${userId}>`
+                                }\n` +
+                                `**Reason:** ${reason}\n` +
+                                `**Duration:** <t:${start}:d> → <t:${end}:d>\n` +
+                                `**Submitted:** <t:${now}:R>`
+                            )
+                            .setFooter({ text: `LOA ID: ${loaId}` })
+                            .setTimestamp();
+
+                        const message = await channel.send({ embeds: [embed] });
+
+                        // Save message ID so we can delete it on approve/deny
+                        db.prepare(
+                            "UPDATE loas SET pending_message_id = ? WHERE id = ?"
+                        ).run(message.id, loaId);
+                    }
+                }
+            }
+
+            // ------------------------------------------------------------------
+            // Auto-approval flow (if enabled)
+            // ------------------------------------------------------------------
             if (!requiresApproval) {
                 interaction.client.emit("loaUpdate", guildId);
 
@@ -227,7 +268,7 @@ module.exports = {
                 try {
                     const member = await interaction.guild.members.fetch(userId);
                     await member.send(
-                        `Your LOA has been **approved automatically**.\n` +
+                        `Your LOA has been **approved automatically**.\n\n` +
                         `**Reason:** ${reason}\n` +
                         `**Duration:** <t:${start}:d> → <t:${end}:d>`
                     );
@@ -248,7 +289,12 @@ module.exports = {
         if (sub === "cancel") {
             const loa = db
                 .prepare(
-                    "SELECT * FROM loas WHERE guild_id = ? AND user_id = ? AND status IN ('pending','active') ORDER BY submitted_at DESC LIMIT 1"
+                    `SELECT * FROM loas
+                    WHERE guild_id = ?
+                    AND user_id = ?
+                    AND status IN ('pending','active')
+                    ORDER BY submitted_at DESC
+                    LIMIT 1`
                 )
                 .get(guildId, userId);
 
@@ -259,11 +305,15 @@ module.exports = {
                 });
             }
 
-            // Move to history
+            // --------------------------------------------------
+            // Move LOA to history
+            // --------------------------------------------------
             db.prepare(
                 `INSERT INTO loa_history (
-                    id, guild_id, user_id, reason, start_date, end_date,
-                    resolved_at, resolved_by, resolution, status
+                    id, guild_id, user_id, reason,
+                    start_date, end_date,
+                    resolved_at, resolved_by,
+                    resolution, status
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
             ).run(
                 randomUUID(),
@@ -278,12 +328,19 @@ module.exports = {
                 "cancelled"
             );
 
-            db.prepare("DELETE FROM loas WHERE id = ?").run(loa.id);
+            // --------------------------------------------------
+            // REMOVE LOA from active table (THIS WAS MISSING)
+            // --------------------------------------------------
+            db.prepare(
+                `DELETE FROM loas WHERE id = ?`
+            ).run(loa.id);
 
-            // Remove LOA Role
-            const settings = db.prepare(
-                "SELECT loa_role_id FROM loa_settings WHERE guild_id = ?"
-            ).get(guildId);
+            // --------------------------------------------------
+            // Remove LOA role if set
+            // --------------------------------------------------
+            const settings = db
+                .prepare("SELECT loa_role_id FROM loa_settings WHERE guild_id = ?")
+                .get(guildId);
 
             if (settings?.loa_role_id) {
                 try {
@@ -292,10 +349,13 @@ module.exports = {
                 } catch {}
             }
 
+            // --------------------------------------------------
+            // Refresh LOA board + views
+            // --------------------------------------------------
             interaction.client.emit("loaUpdate", guildId);
 
             return interaction.reply({
-                content: "Your LOA has been **cancelled**.",
+                content: "Your LOA has been **cancelled** and removed from the board.",
                 flags: MessageFlags.Ephemeral,
             });
         }
@@ -509,7 +569,7 @@ module.exports = {
         }
 
         // ----------------------------------------------------------------------
-        // /loa approve → unchanged
+        // /loa approve
         // ----------------------------------------------------------------------
         if (sub === "approve" && !group) {
             if (!isStaff()) {
@@ -534,23 +594,36 @@ module.exports = {
                 });
             }
 
+            // ------------------------------------------------------------------
+            // DELETE the pending LOA message from board channel
+            // ------------------------------------------------------------------
+            if (loa.pending_message_id) {
+                const board = db
+                    .prepare("SELECT channel_id FROM loa_board WHERE guild_id = ?")
+                    .get(guildId);
+
+                if (board) {
+                    const channel = interaction.guild.channels.cache.get(board.channel_id);
+                    if (channel) {
+                        try {
+                            const msg = await channel.messages.fetch(loa.pending_message_id);
+                            await msg.delete();
+                        } catch {
+                            // Message may already be deleted. Ignore silently.
+                        }
+                    }
+                }
+            }
+
+            // Approve LOA in DB
             db.prepare(
                 "UPDATE loas SET status = 'active', approved_at = ?, approved_by = ?, updated_at = ? WHERE id = ?"
             ).run(now, interaction.user.id, now, loa.id);
 
+            // Update board to reflect this LOA becoming active
             interaction.client.emit("loaUpdate", guildId);
 
-            // Send DM to user
-            try {
-                const member = await interaction.guild.members.fetch(target.id);
-                await member.send(
-                    `Your LOA request has been **approved**.\n` +
-                    `**Reason:** ${loa.reason}\n` +
-                    `**Duration:** <t:${loa.start_date}:d> → <t:${loa.end_date}:d>`
-                );
-            } catch {}
-
-            // Assign LOA role
+            // Assign LOA role if configured
             const settings = db
                 .prepare("SELECT loa_role_id FROM loa_settings WHERE guild_id = ?")
                 .get(guildId);
@@ -562,11 +635,22 @@ module.exports = {
                 } catch {}
             }
 
+            // DM user about approval
+            try {
+                const member = await interaction.guild.members.fetch(target.id);
+                await member.send(
+                    `Your LOA request has been **approved**.\n\n` +
+                    `**Reason:** ${loa.reason}\n` +
+                    `**Duration:** <t:${loa.start_date}:d> → <t:${loa.end_date}:d>`
+                );
+            } catch {}
+
             return interaction.reply({
                 content: `Approved LOA for **${target.tag}**.`,
                 flags: MessageFlags.Ephemeral,
             });
         }
+
         // ----------------------------------------------------------------------
         // /loa deny
         // ----------------------------------------------------------------------
