@@ -10,25 +10,25 @@ const express = require("express");
 const app = express();
 const { log } = require("./src/core/discordLogger");
 
-// Validate config
+// --------------- CONFIG VALIDATION ----------------
 validateConfig(config);
 
-// Ensure token exists
+// --------------- TOKEN VALIDATION ----------------
 if (!config.token) {
     logger.error("BOT_TOKEN environment variable is missing. Set it in Render.");
     process.exit(1);
 }
 
-// Load SQL schemas
+// --------------- LOAD SQL SCHEMA ----------------
 loadSchemas();
 
-// Create Discord client
+// --------------- CREATE DISCORD CLIENT ----------------
 const client = createClient();
 
-// Load Discord event handlers
+// --------------- DISCORD EVENT HANDLER ----------------
 loadEvents(client);
 
-// Crash handlers
+// --------------- CRASH HANDLER ----------------
 process.on("unhandledRejection", (err) => {
     logger.error("Unhandled Promise Rejection:");
     console.error(err);
@@ -42,17 +42,17 @@ process.on("uncaughtException", (err) => {
 // --------------- EXPRESS SETUP ----------------
 app.use(express.json());
 
-// Health check route
+// --------------- HEALTH CHECK ROUTE ----------------
 app.get("/", (req, res) => {
     res.status(200).send("Astral Relay is running.");
 });
 
-// GitHub GET verification
+// --------------- GITHUB VALIDATION ----------------
 app.get("/webhooks/github", (req, res) => {
     res.status(200).send("GitHub Webhook Endpoint Active");
 });
 
-// GitHub POST Webhook
+// --------------- GITHUB WEBHOOK VALIDATION ----------------
 app.post("/webhooks/github", (req, res) => {
     const event = req.headers["x-github-event"];
     const payload = req.body;
@@ -94,18 +94,16 @@ client.once("ready", () => {
 
     const PORT = process.env.PORT || 10000;
 
-    // Fix #2 — small delay ensures Render finishes warm-up before binding to port
     setTimeout(() => {
         app.listen(PORT, () => {
             console.log(`Webhook server running on port ${PORT}`);
 
-            // Optional: send startup logs to Discord's system log channel
             log("INFO", "Webhook Server", `Webhook server running on **port ${PORT}**`);
         });
     }, 500); // 0.5 second buffer
 });
 
-// Login after everything is set up
+// --------------- CLIENT LOGIN ----------------
 client.login(config.token).catch((err) => {
     logger.error("Failed to login:");
     console.error(err);
