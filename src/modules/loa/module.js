@@ -1,3 +1,6 @@
+const db = require("../../core/database");
+
+
 // Reminder checks every minute
 setInterval(async () => {
     const now = Math.floor(Date.now() / 1000);
