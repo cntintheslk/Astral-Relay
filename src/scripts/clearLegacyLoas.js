@@ -1,5 +1,5 @@
 // scripts/clearLegacyLoas.js
-const db = require("../src/core/database");
+const db = require("../core/database");
 
 const info = db.prepare(`
   DELETE FROM loa_requests
