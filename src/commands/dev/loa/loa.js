@@ -2,6 +2,10 @@ const {
     SlashCommandBuilder,
     PermissionFlagsBits,
     EmbedBuilder,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    ComponentType,
 } = require("discord.js");
 
 const db = require("../../../core/database");
@@ -47,6 +51,13 @@ module.exports = {
             sub
                 .setName("view")
                 .setDescription("View all active LOAs.")
+        )
+
+        // /loa pending
+        .addSubcommand(sub =>
+            sub
+                .setName("pending")
+                .setDescription("View LOAs awaiting approval.")
         )
 
         // /loa status
@@ -247,9 +258,9 @@ module.exports = {
         }
 
         // ----------------------------------------------------------------------
-        // /loa view
+        // /loa view (active LOAs)
         // ----------------------------------------------------------------------
-        if (sub === "view") {
+        if (sub === "view" && !group) {
             const loas = db
                 .prepare(
                     "SELECT * FROM loas WHERE guild_id = ? AND status = 'active' ORDER BY end_date ASC"
@@ -284,9 +295,145 @@ module.exports = {
         }
 
         // ----------------------------------------------------------------------
+        // /loa pending (with pagination)
+        // ----------------------------------------------------------------------
+        if (sub === "pending" && !group) {
+            if (!isStaff()) {
+                return interaction.reply({
+                    content: "You do not have permission to view pending LOAs.",
+                    ephemeral: true,
+                });
+            }
+
+            const pending = db
+                .prepare(
+                    "SELECT * FROM loas WHERE guild_id = ? AND status = 'pending' ORDER BY submitted_at ASC"
+                )
+                .all(guildId);
+
+            const embed = new EmbedBuilder()
+                .setColor(0xffc857)
+                .setTitle("⏳ Pending LOA Requests")
+                .setTimestamp();
+
+            if (pending.length === 0) {
+                embed.setDescription("*There are no LOAs currently awaiting approval.*");
+                return interaction.reply({ embeds: [embed], ephemeral: true });
+            }
+
+            // Pagination setup
+            const pageSize = 5;
+            const totalPages = Math.ceil(pending.length / pageSize);
+            let currentPage = 0;
+            const sessionId = randomUUID().slice(0, 8);
+
+            const buildPageEmbed = (pageIndex) => {
+                const startIndex = pageIndex * pageSize;
+                const slice = pending.slice(startIndex, startIndex + pageSize);
+
+                let description = "";
+
+                for (const loa of slice) {
+                    const reg = getRegistrationInfo(guildId, loa.user_id);
+
+                    const displayName =
+                        reg && reg.ign
+                            ? `**${reg.ign}** (${reg.rank})`
+                            : `<@${loa.user_id}>`;
+
+                    description +=
+                        `### ${displayName}\n` +
+                        `**Reason:** ${loa.reason}\n` +
+                        `**Submitted:** <t:${loa.submitted_at}:R>\n` +
+                        `**Duration:** <t:${loa.start_date}:d> → <t:${loa.end_date}:d>\n` +
+                        `**LOA ID:** \`${loa.id}\`\n` +
+                        `┈┈┈┈┈┈┈┈┈┈┈\n`;
+                }
+
+                const pageEmbed = EmbedBuilder.from(embed);
+                pageEmbed.setDescription(description);
+                pageEmbed.setFooter({
+                    text: `Page ${pageIndex + 1} of ${totalPages}`,
+                });
+
+                return pageEmbed;
+            };
+
+            const makeRow = (pageIndex) => {
+                const firstId = `loa_pending_${sessionId}_first`;
+                const prevId = `loa_pending_${sessionId}_prev`;
+                const nextId = `loa_pending_${sessionId}_next`;
+                const lastId = `loa_pending_${sessionId}_last`;
+
+                return new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(firstId)
+                        .setLabel("⏮ First")
+                        .setStyle(ButtonStyle.Secondary)
+                        .setDisabled(pageIndex === 0),
+                    new ButtonBuilder()
+                        .setCustomId(prevId)
+                        .setLabel("◀ Prev")
+                        .setStyle(ButtonStyle.Secondary)
+                        .setDisabled(pageIndex === 0),
+                    new ButtonBuilder()
+                        .setCustomId(nextId)
+                        .setLabel("Next ▶")
+                        .setStyle(ButtonStyle.Secondary)
+                        .setDisabled(pageIndex >= totalPages - 1),
+                    new ButtonBuilder()
+                        .setCustomId(lastId)
+                        .setLabel("Last ⏭")
+                        .setStyle(ButtonStyle.Secondary)
+                        .setDisabled(pageIndex >= totalPages - 1)
+                );
+            };
+
+            const message = await interaction.reply({
+                embeds: [buildPageEmbed(currentPage)],
+                components: [makeRow(currentPage)],
+                ephemeral: true,
+                fetchReply: true,
+            });
+
+            const collector = message.createMessageComponentCollector({
+                componentType: ComponentType.Button,
+                time: 60_000,
+                filter: (i) =>
+                    i.user.id === interaction.user.id &&
+                    i.customId.startsWith(`loa_pending_${sessionId}_`),
+            });
+
+            collector.on("collect", async (buttonInteraction) => {
+                const id = buttonInteraction.customId;
+
+                if (id.endsWith("_first")) currentPage = 0;
+                else if (id.endsWith("_prev") && currentPage > 0) currentPage--;
+                else if (id.endsWith("_next") && currentPage < totalPages - 1)
+                    currentPage++;
+                else if (id.endsWith("_last")) currentPage = totalPages - 1;
+
+                await buttonInteraction.update({
+                    embeds: [buildPageEmbed(currentPage)],
+                    components: [makeRow(currentPage)],
+                });
+            });
+
+            collector.on("end", async () => {
+                try {
+                    await message.edit({ components: [] });
+                } catch {
+                    // message may be gone, ignore
+                }
+            });
+
+            return;
+        }
+
+        // ----------------------------------------------------------------------
         // /loa status
         // ----------------------------------------------------------------------
-        if (sub === "status") {
+        if (sub === "status" && !group) {
             const loa = db
                 .prepare(
                     "SELECT * FROM loas WHERE guild_id = ? AND user_id = ? ORDER BY submitted_at DESC LIMIT 1"
@@ -322,7 +469,7 @@ module.exports = {
         // ----------------------------------------------------------------------
         // /loa approve
         // ----------------------------------------------------------------------
-        if (sub === "approve") {
+        if (sub === "approve" && !group) {
             if (!isStaff()) {
                 return interaction.reply({
                     content: "You do not have permission to approve LOAs.",
@@ -334,7 +481,7 @@ module.exports = {
 
             const loa = db
                 .prepare(
-                    "SELECT * FROM loas WHERE guild_id = ? AND user_id = ? AND status = 'pending' LIMIT 1"
+                    "SELECT * FROM loas WHERE guild_id = ? AND user_id = ? AND status = 'pending' ORDER BY submitted_at DESC LIMIT 1"
                 )
                 .get(guildId, target.id);
 
@@ -360,7 +507,7 @@ module.exports = {
         // ----------------------------------------------------------------------
         // /loa deny
         // ----------------------------------------------------------------------
-        if (sub === "deny") {
+        if (sub === "deny" && !group) {
             if (!isStaff()) {
                 return interaction.reply({
                     content: "You do not have permission to deny LOAs.",
@@ -373,7 +520,7 @@ module.exports = {
 
             const loa = db
                 .prepare(
-                    "SELECT * FROM loas WHERE guild_id = ? AND user_id = ? AND status = 'pending' LIMIT 1"
+                    "SELECT * FROM loas WHERE guild_id = ? AND user_id = ? AND status = 'pending' ORDER BY submitted_at DESC LIMIT 1"
                 )
                 .get(guildId, target.id);
 
