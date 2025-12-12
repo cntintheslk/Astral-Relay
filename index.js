@@ -103,6 +103,38 @@ client.once("ready", () => {
     }, 500); // 0.5 second buffer
 });
 
+// --------------- DAILY AUTORESTART AT 00:00 UTC ----------------
+function scheduleDailyRestart() {
+    const now = new Date();
+
+    // Next midnight UTC
+    const next = new Date(now);
+    next.setUTCHours(0, 0, 0, 0);
+
+    // If we've already passed today's 00:00 UTC, go to tomorrow
+    if (next <= now) {
+        next.setUTCDate(next.getUTCDate() + 1);
+    }
+
+    const msUntilRestart = next.getTime() - now.getTime();
+
+    console.log(
+        `[system] Scheduled daily restart at 00:00 UTC in ${Math.round(
+            msUntilRestart / 1000
+        )} seconds.`
+    );
+
+    setTimeout(() => {
+        console.log("[system] Daily scheduled restart: exiting process with code 0.");
+        // You can log to Discord here if you want, but keep it simple:
+        process.exit(0);
+    }, msUntilRestart);
+}
+
+// call this once on startup
+scheduleDailyRestart();
+
+
 // --------------- CLIENT LOGIN ----------------
 client.login(config.token).catch((err) => {
     logger.error("Failed to login:");

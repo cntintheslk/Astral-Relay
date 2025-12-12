@@ -1,0 +1,101 @@
+ALTER TABLE loas RENAME TO loas_old;
+
+CREATE TABLE loas (
+  id           TEXT PRIMARY KEY,
+  guild_id     TEXT NOT NULL,
+  user_id      TEXT NOT NULL,
+  reason       TEXT NOT NULL,
+  start_date   INTEGER NOT NULL,
+  end_date     INTEGER NOT NULL,
+  status       TEXT NOT NULL,
+  submitted_at INTEGER NOT NULL,
+  approved_at  INTEGER,
+  approved_by  TEXT,
+  updated_at   INTEGER NOT NULL
+);
+
+INSERT INTO loas (
+  id, guild_id, user_id, reason,
+  start_date, end_date, status,
+  submitted_at, approved_at, approved_by, updated_at
+)
+SELECT
+  CAST(id AS TEXT),
+  guild_id,
+  user_id,
+  reason,
+  start_date,
+  end_date,
+  status,
+  submitted_at,
+  approved_at,
+  approved_by,
+  updated_at
+FROM loas_old;
+
+DROP TABLE loas_old;
+
+---------------------------------------------------------------
+-- 2. MIGRATE loa_history TABLE
+---------------------------------------------------------------
+
+ALTER TABLE loa_history RENAME TO loa_history_old;
+
+CREATE TABLE loa_history (
+  id           TEXT PRIMARY KEY,
+  guild_id     TEXT NOT NULL,
+  user_id      TEXT NOT NULL,
+  reason       TEXT NOT NULL,
+  start_date   INTEGER NOT NULL,
+  end_date     INTEGER NOT NULL,
+  resolved_at  INTEGER NOT NULL,
+  resolved_by  TEXT,
+  resolution   TEXT NOT NULL,
+  status       TEXT NOT NULL
+);
+
+INSERT INTO loa_history (
+  id, guild_id, user_id, reason,
+  start_date, end_date, resolved_at,
+  resolved_by, resolution, status
+)
+SELECT
+  CAST(id AS TEXT),
+  guild_id,
+  user_id,
+  reason,
+  start_date,
+  end_date,
+  resolved_at,
+  resolved_by,
+  resolution,
+  status
+FROM loa_history_old;
+
+DROP TABLE loa_history_old;
+
+---------------------------------------------------------------
+-- 3. REBUILD INDEXES
+---------------------------------------------------------------
+
+CREATE INDEX IF NOT EXISTS idx_loas_guild
+  ON loas (guild_id);
+
+CREATE INDEX IF NOT EXISTS idx_loas_user
+  ON loas (user_id);
+
+CREATE INDEX IF NOT EXISTS idx_loas_status
+  ON loas (status);
+
+CREATE INDEX IF NOT EXISTS idx_loa_history_guild
+  ON loa_history (guild_id);
+
+CREATE INDEX IF NOT EXISTS idx_loa_history_user
+  ON loa_history (user_id);
+
+---------------------------------------------------------------
+-- 4. VERIFY STRUCTURE
+---------------------------------------------------------------
+
+PRAGMA foreign_keys = ON;
+

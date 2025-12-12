@@ -1,31 +1,30 @@
 -- ============================================================
---  LOA SETTINGS (NEW)
---  Per-guild configuration for LOA behaviour
+--  LOA SETTINGS TABLE
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS loa_settings (
   guild_id TEXT PRIMARY KEY,
-  require_approval INTEGER DEFAULT 0,   -- 0 = auto-approve, 1 = staff approval required
+  require_approval INTEGER DEFAULT 0,
   updated_at INTEGER NOT NULL
 );
 
 
 -- ============================================================
---  LOA MAIN TABLE
+--  LOA MAIN TABLE (UUID IDs)
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS loas (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  guild_id      TEXT NOT NULL,
-  user_id       TEXT NOT NULL,
-  reason        TEXT NOT NULL,
-  start_date    INTEGER NOT NULL,
-  end_date      INTEGER NOT NULL,
-  status        TEXT NOT NULL,   -- pending, approved, active, expired, cancelled
-  submitted_at  INTEGER NOT NULL,
-  approved_at   INTEGER,
-  approved_by   TEXT,
-  updated_at    INTEGER NOT NULL
+  id           TEXT PRIMARY KEY,         -- UUID
+  guild_id     TEXT NOT NULL,
+  user_id      TEXT NOT NULL,
+  reason       TEXT NOT NULL,
+  start_date   INTEGER NOT NULL,
+  end_date     INTEGER NOT NULL,
+  status       TEXT NOT NULL,            -- pending, active, cancelled, denied, expired
+  submitted_at INTEGER NOT NULL,
+  approved_at  INTEGER,
+  approved_by  TEXT,
+  updated_at   INTEGER NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_loas_guild
@@ -39,11 +38,11 @@ CREATE INDEX IF NOT EXISTS idx_loas_status
 
 
 -- ============================================================
---  LOA HISTORY TABLE
+--  LOA HISTORY TABLE (UUID IDs)
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS loa_history (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  id           TEXT PRIMARY KEY,         -- UUID
   guild_id     TEXT NOT NULL,
   user_id      TEXT NOT NULL,
   reason       TEXT NOT NULL,
@@ -51,7 +50,7 @@ CREATE TABLE IF NOT EXISTS loa_history (
   end_date     INTEGER NOT NULL,
   resolved_at  INTEGER NOT NULL,
   resolved_by  TEXT,
-  resolution   TEXT NOT NULL,     -- completed, cancelled, expired
+  resolution   TEXT NOT NULL,            -- completed, cancelled, expired, denied
   status       TEXT NOT NULL
 );
 
@@ -63,7 +62,7 @@ CREATE INDEX IF NOT EXISTS idx_loa_history_user
 
 
 -- ============================================================
---  LOA BOARD TABLE
+--  LOA BOARD CONFIG TABLE
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS loa_board (
