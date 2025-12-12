@@ -71,3 +71,6 @@ CREATE TABLE IF NOT EXISTS loa_board (
   message_id TEXT NOT NULL,
   updated_at INTEGER NOT NULL
 );
+
+ALTER TABLE loa_settings
+ADD COLUMN loa_role_id TEXT;
