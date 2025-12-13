@@ -53,21 +53,11 @@ function createSuccessEmbed(title, description) {
         .setDescription(description);
 }
 
-function createInfoEmbed({ title, description }) {
-    const embed = new EmbedBuilder()
-        .setColor(0x5865f2)
-        .setTitle(title ?? "Info");
-
-    // ✅ HARD GUARD
-    if (typeof description !== "string" || description.trim().length === 0) {
-        embed.setDescription("*No data available.*");
-    } else {
-        embed.setDescription(description);
-    }
-
-    return embed;
+function createInfoEmbed(title, description) {
+    return baseReplyEmbed(LOG_COLORS.INFO)
+        .setTitle(title)
+        .setDescription(description);
 }
-
 
 function createWarningEmbed(title, description) {
     return baseReplyEmbed(LOG_COLORS.WARN)
