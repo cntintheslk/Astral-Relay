@@ -5,6 +5,7 @@
 CREATE TABLE IF NOT EXISTS loa_settings (
   guild_id TEXT PRIMARY KEY,
   require_approval INTEGER DEFAULT 0,
+  loa_role_id TEXT,              -- ROLE ASSIGNED DURING LOA
   updated_at INTEGER NOT NULL
 );
 
@@ -14,17 +15,18 @@ CREATE TABLE IF NOT EXISTS loa_settings (
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS loas (
-  id           TEXT PRIMARY KEY,         -- UUID
-  guild_id     TEXT NOT NULL,
-  user_id      TEXT NOT NULL,
-  reason       TEXT NOT NULL,
-  start_date   INTEGER NOT NULL,
-  end_date     INTEGER NOT NULL,
-  status       TEXT NOT NULL,            -- pending, active, cancelled, denied, expired
+  id TEXT PRIMARY KEY,           -- UUID
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  start_date INTEGER NOT NULL,
+  end_date INTEGER NOT NULL,
+  status TEXT NOT NULL,          -- pending, active, cancelled, denied, expired
   submitted_at INTEGER NOT NULL,
-  approved_at  INTEGER,
-  approved_by  TEXT,
-  updated_at   INTEGER NOT NULL
+  approved_at INTEGER,
+  approved_by TEXT,
+  pending_message_id TEXT,       -- BOARD MESSAGE FOR PENDING APPROVAL
+  updated_at INTEGER NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_loas_guild
@@ -42,16 +44,16 @@ CREATE INDEX IF NOT EXISTS idx_loas_status
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS loa_history (
-  id           TEXT PRIMARY KEY,         -- UUID
-  guild_id     TEXT NOT NULL,
-  user_id      TEXT NOT NULL,
-  reason       TEXT NOT NULL,
-  start_date   INTEGER NOT NULL,
-  end_date     INTEGER NOT NULL,
-  resolved_at  INTEGER NOT NULL,
-  resolved_by  TEXT,
-  resolution   TEXT NOT NULL,            -- completed, cancelled, expired, denied
-  status       TEXT NOT NULL
+  id TEXT PRIMARY KEY,           -- UUID
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  start_date INTEGER NOT NULL,
+  end_date INTEGER NOT NULL,
+  resolved_at INTEGER NOT NULL,
+  resolved_by TEXT,
+  resolution TEXT NOT NULL,      -- cancelled, denied, expired
+  status TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_loa_history_guild
@@ -66,11 +68,8 @@ CREATE INDEX IF NOT EXISTS idx_loa_history_user
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS loa_board (
-  guild_id   TEXT PRIMARY KEY,
+  guild_id TEXT PRIMARY KEY,
   channel_id TEXT NOT NULL,
   message_id TEXT NOT NULL,
   updated_at INTEGER NOT NULL
 );
-
-ALTER TABLE loa_settings
-ADD COLUMN loa_role_id TEXT;

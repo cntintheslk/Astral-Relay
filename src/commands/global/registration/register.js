@@ -108,6 +108,7 @@ module.exports = {
         // Assign rank role
         try {
             await member.roles.add(targetRoleId);
+            await member.roles.remove(config.unverified_role_id).catch(() => {});
         } catch (err) {
             logger.error(`[register] Failed to assign role ${targetRoleId}: ${err.message}`);
             return interaction.reply({
