@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
-const stopBot = require("../../../stop");
-const config = require("../../../core/config");
+const stopBot = require("../../../../stop");
+const config = require("../../../../core/config");
 
 module.exports = {
     data: new SlashCommandBuilder()
