@@ -35,8 +35,6 @@ function msToRoughHours(ms) {
 }
 
 module.exports = {
-    category: "dev",
-
     data: new SlashCommandBuilder()
         .setName("autopurge")
         .setDescription("Manage the automatic role-based purge system")
@@ -443,12 +441,26 @@ module.exports = {
         }
 
         // ─────────────── EXECUTION (placeholders) ───────────────
-        if (sub === "dryrun" || sub === "run") {
-            return interaction.reply({
-                ephemeral: true,
-                content: "Manual execution is not implemented yet."
-            });
+        if (sub === "dryrun") {
+            await interaction.deferReply({ ephemeral: true });
+
+            const summary = await dryRunSummary(interaction.client, interaction.guild.id);
+
+            const embed = new EmbedBuilder()
+                .setTitle("🧪 Auto-Purge Dry Run")
+                .setColor(0x5865f2)
+                .addFields(
+                    { name: "Enabled Rules", value: `${summary.rules}`, inline: true },
+                    { name: "Matched Members", value: `${summary.matched}`, inline: true },
+                    { name: "Actions Taken", value: "None (dry run)", inline: true }
+                )
+                .setFooter({
+                    text: "This command performs no kicks or role removals."
+                });
+
+            return interaction.editReply({ embeds: [embed] });
         }
+
 
         return interaction.reply({ ephemeral: true, content: "Unknown autopurge command." });
     }
