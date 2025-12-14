@@ -1,5 +1,5 @@
-const logger = require("./core/logger");
-const database = require("./core/database");
+const logger = require("./src/core/logger");
+const database = require("./src/core/database");
 
 let shuttingDown = false;
 
