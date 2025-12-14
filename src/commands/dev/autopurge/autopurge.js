@@ -5,7 +5,7 @@ const {
 } = require("discord.js");
 
 const crypto = require("crypto");
-const db = require("../../modules/database");
+const db = require("../../../core/database");
 
 function toSeconds(duration, unit) {
     if (unit === "hours") return duration * 60 * 60;
