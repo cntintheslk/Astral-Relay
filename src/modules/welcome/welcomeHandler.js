@@ -1,7 +1,8 @@
 const db = require("../../core/database");
 const { EmbedBuilder } = require("discord.js");
 
-module.exports = async function handleWelcome(member) {
+module.exports = async function handleWelcome(member, { isTest = false } = {}) {
+
     const config = db.prepare(`
         SELECT * FROM welcome_config WHERE guild_id = ?
     `).get(member.guild.id);
@@ -32,7 +33,11 @@ module.exports = async function handleWelcome(member) {
         .setFooter({ text: "Astral Relay • Welcome System" })
         .setTimestamp();
 
-    await channel.send({ embeds: [embed] });
+    await channel.send({
+    embeds: [embed],
+    allowedMentions: isTest ? { users: [] } : undefined
+    });
+
 
     if (config.dm_enabled) {
         member.send({ embeds: [embed] }).catch(() => {});

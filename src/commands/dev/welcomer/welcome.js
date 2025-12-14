@@ -48,7 +48,12 @@ module.exports = {
                     o.setName("enabled")
                         .setDescription("Whether welcome DMs should be sent")
                 )
+        )
+        .addSubcommand(sc =>
+            sc.setName("test")
+                .setDescription("Send a test welcome message using current config")
         ),
+
 
 
     async execute(interaction) {
@@ -180,6 +185,45 @@ module.exports = {
                 ephemeral: true
             });
         }
+        /* ======================
+            TEST
+        ====================== */
+        if (sub === "test") {
+            if (!config || !config.channel_id || !config.message) {
+                return interaction.reply({
+                    content: "❌ Welcome system is not fully configured.",
+                    ephemeral: true
+                });
+            }
+
+            const fakeMember = {
+                id: interaction.user.id,
+                user: interaction.user,
+                guild: interaction.guild
+            };
+
+            try {
+                await handleWelcome(fakeMember, { isTest: true });
+
+                return interaction.reply({
+                    embeds: [
+                        new EmbedBuilder()
+                            .setColor("Green")
+                            .setTitle("Welcome Test Sent")
+                            .setDescription(
+                                `A test welcome message has been sent to <#${config.channel_id}>.`
+                            )
+                    ],
+                    ephemeral: true
+                });
+            } catch (err) {
+                return interaction.reply({
+                    content: `❌ Failed to send test welcome: ${err.message}`,
+                    ephemeral: true
+                });
+            }
+        }
+
 
         /* ======================
            STATUS
