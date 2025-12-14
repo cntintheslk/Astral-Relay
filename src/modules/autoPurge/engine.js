@@ -12,6 +12,15 @@ function isProtected(member) {
     if (member.permissions.has("Administrator")) return true;
     return false;
 }
+function isLiveEnabled(guildId) {
+    const row = db.prepare(`
+        SELECT enabled
+        FROM auto_purge_state
+        WHERE guild_id = ?
+    `).get(guildId);
+
+    return row?.enabled === 1;
+}
 
 /**
  * Core evaluator.
@@ -86,8 +95,19 @@ async function dryRunSummary(client, guildId) {
  * Should only be called when system is explicitly enabled.
  */
 async function runAutoPurge(client, guildId, { dryRun = true } = {}) {
-    const matches = await evaluateGuild(client, guildId);
+    if (!dryRun && !isLiveEnabled(guildId)) {
+        logger.warn(
+            `[AutoPurge] Live run blocked — system disabled for guild ${guildId}`
+        );
+        return {
+            matched: 0,
+            executed: 0,
+            blocked: true
+        };
+    }
 
+    const matches = await evaluateGuild(client, guildId);
+    
     if (dryRun) {
         logger.info(
             `[AutoPurge] Dry-run complete for guild ${guildId}: ${matches.length} match(es)`

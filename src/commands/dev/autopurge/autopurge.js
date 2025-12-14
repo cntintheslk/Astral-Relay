@@ -8,7 +8,7 @@ const {
 
 const crypto = require("crypto");
 const db = require("../../../core/database");
-const { dryRunSummary } = require("../../../modules/autoPurge/engine");
+const { dryRunSummary, runAutoPurge } = require("../../../modules/autoPurge/engine");
 
 
 // ===== Helpers =====
@@ -36,7 +36,31 @@ function msToRoughHours(ms) {
     return Math.max(0, Math.floor(ms / 1000 / 60 / 60));
 }
 
+// Persists live enable/disable in DB (auto_purge_state)
+function setLiveState(guildId, enabled) {
+    db.prepare(`
+        INSERT INTO auto_purge_state (guild_id, enabled, updated_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(guild_id)
+        DO UPDATE SET
+            enabled = excluded.enabled,
+            updated_at = excluded.updated_at
+    `).run(guildId, enabled ? 1 : 0, Date.now());
+}
+
+function getLiveState(guildId) {
+    const row = db.prepare(`
+        SELECT enabled
+        FROM auto_purge_state
+        WHERE guild_id = ?
+    `).get(guildId);
+
+    return row?.enabled === 1;
+}
+
 module.exports = {
+    category: "dev",
+
     data: new SlashCommandBuilder()
         .setName("autopurge")
         .setDescription("Manage the automatic role-based purge system")
@@ -56,16 +80,16 @@ module.exports = {
                 .setDescription("Preview members that would be affected by enabled rules")
         )
 
-        // ─────────────── ENABLE / DISABLE (system placeholders) ───────────────
+        // ─────────────── ENABLE / DISABLE (system) ───────────────
         .addSubcommand(sub =>
             sub
                 .setName("enable")
-                .setDescription("Enable live auto-purge enforcement (not implemented yet)")
+                .setDescription("Enable live auto-purge enforcement")
         )
         .addSubcommand(sub =>
             sub
                 .setName("disable")
-                .setDescription("Disable live auto-purge enforcement (not implemented yet)")
+                .setDescription("Disable live auto-purge enforcement")
         )
 
         // ─────────────── RULES GROUP ───────────────
@@ -155,11 +179,11 @@ module.exports = {
                 )
         )
 
-        // ─────────────── EXECUTION (placeholders) ───────────────
+        // ─────────────── EXECUTION ───────────────
         .addSubcommand(sub =>
             sub
                 .setName("dryrun")
-                .setDescription("Manually run auto-purge in dry-run mode (not implemented yet)")
+                .setDescription("Manually run auto-purge in dry-run mode (no actions performed)")
         )
         .addSubcommand(sub =>
             sub
@@ -180,21 +204,44 @@ module.exports = {
                 WHERE guild_id = ?
             `).get(guildId)?.count ?? 0;
 
-            const enabled = db.prepare(`
+            const enabledRules = db.prepare(`
                 SELECT COUNT(*) AS count
                 FROM auto_purge_rules
                 WHERE guild_id = ? AND enabled = 1
             `).get(guildId)?.count ?? 0;
+
+            const live = getLiveState(guildId);
 
             const embed = new EmbedBuilder()
                 .setTitle("🚮 Auto-Purge Status")
                 .setColor(0x2b2d31)
                 .addFields(
                     { name: "Rules (total)", value: `${total}`, inline: true },
-                    { name: "Rules (enabled)", value: `${enabled}`, inline: true },
-                    { name: "Live Mode", value: "❌ Not wired yet", inline: true }
+                    { name: "Rules (enabled)", value: `${enabledRules}`, inline: true },
+                    { name: "Live Mode", value: live ? "✅ Enabled" : "❌ Disabled", inline: true }
                 )
-                .setFooter({ text: "Use /autopurge rules list to copy rule IDs." });
+                .setFooter({ text: "Tip: Use /autopurge dryrun before enabling live mode." });
+
+            return interaction.reply({ embeds: [embed], ephemeral: true });
+        }
+
+        // ─────────────── SYSTEM ENABLE / DISABLE ───────────────
+        if (sub === "enable" || sub === "disable") {
+            const enable = sub === "enable";
+            setLiveState(guildId, enable);
+
+            const embed = new EmbedBuilder()
+                .setTitle(enable ? "🔐 Auto-Purge Enabled" : "⛔ Auto-Purge Disabled")
+                .setColor(enable ? 0x57f287 : 0xed4245)
+                .setDescription(
+                    enable
+                        ? "Auto-purge **live enforcement is now ENABLED**.\n\n" +
+                          "⚠️ When the scheduler/manual run is implemented, members may be kicked or have roles removed when rules match.\n" +
+                          "Use `/autopurge disable` to turn this off immediately."
+                        : "Auto-purge **live enforcement is now DISABLED**.\n\n" +
+                          "No members will be kicked or modified automatically."
+                )
+                .setFooter({ text: "Tip: /autopurge dryrun shows what would happen without actions." });
 
             return interaction.reply({ embeds: [embed], ephemeral: true });
         }
@@ -318,7 +365,7 @@ module.exports = {
 
                 if (role.managed && action === "remove_role") {
                     embed.setFooter({
-                        text: "Note: This role is managed by an integration; removing it may fail when enforcement is added."
+                        text: "Note: This role is managed by an integration; removing it may fail when live execution is added."
                     });
                 }
 
@@ -365,6 +412,7 @@ module.exports = {
             // ENABLE / DISABLE (rule)
             if (sub === "enable" || sub === "disable") {
                 const ruleId = interaction.options.getString("rule_id", true);
+
                 const existing = db.prepare(`
                     SELECT id, enabled
                     FROM auto_purge_rules
@@ -434,36 +482,62 @@ module.exports = {
             return interaction.reply({ ephemeral: true, content: "Unknown rules subcommand." });
         }
 
-        // ─────────────── SYSTEM ENABLE/DISABLE (placeholders) ───────────────
-        if (sub === "enable" || sub === "disable") {
-            return interaction.reply({
-                ephemeral: true,
-                content: "System live-mode enable/disable is not implemented yet. (Next step: dryrun + live toggle.)"
-            });
-        }
-
-        // ─────────────── EXECUTION (placeholders) ───────────────
+        // ─────────────── DRY RUN ───────────────
         if (sub === "dryrun") {
             await interaction.deferReply({ ephemeral: true });
 
-            const summary = await dryRunSummary(interaction.client, interaction.guild.id);
+            const summary = await dryRunSummary(interaction.client, guildId);
 
             const embed = new EmbedBuilder()
                 .setTitle("🧪 Auto-Purge Dry Run")
                 .setColor(0x5865f2)
                 .addFields(
-                    { name: "Enabled Rules", value: `${summary.rules}`, inline: true },
+                    { name: "Enabled Rules (matched)", value: `${summary.rules}`, inline: true },
                     { name: "Matched Members", value: `${summary.matched}`, inline: true },
                     { name: "Actions Taken", value: "None (dry run)", inline: true }
                 )
-                .setFooter({
-                    text: "This command performs no kicks or role removals."
-                });
+                .setFooter({ text: "This performs no kicks or role removals." });
 
             return interaction.editReply({ embeds: [embed] });
         }
 
+        // ─────────────── RUN (LIVE) ───────────────
+        if (sub === "run") {
+            await interaction.deferReply({ ephemeral: true });
 
-        return interaction.reply({ ephemeral: true, content: "Unknown autopurge command." });
+            // Safety check (UX-level, engine also enforces)
+            if (!getLiveState(guildId)) {
+                return interaction.editReply({
+                    content: "❌ Auto-purge live mode is **disabled**.\n\nEnable it first with `/autopurge enable`."
+                });
+            }
+
+            const result = await runAutoPurge(
+                interaction.client,
+                guildId,
+                { dryRun: false }
+            );
+
+            // Engine-level block (extra safety)
+            if (result?.blocked) {
+                return interaction.editReply({
+                    content: "❌ Auto-purge run blocked because live mode is disabled."
+                });
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle("🚨 Auto-Purge Executed")
+                .setColor(result.executed > 0 ? 0xed4245 : 0x57f287)
+                .addFields(
+                    { name: "Matched Members", value: `${result.matched}`, inline: true },
+                    { name: "Actions Executed", value: `${result.executed}`, inline: true },
+                    { name: "Live Mode", value: "✅ Enabled", inline: true }
+                )
+                .setFooter({
+                    text: "This was a LIVE run. Actions were applied immediately."
+                });
+
+            return interaction.editReply({ embeds: [embed] });
+        }
     }
 };

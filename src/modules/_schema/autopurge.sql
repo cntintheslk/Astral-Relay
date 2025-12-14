@@ -16,3 +16,9 @@ CREATE TABLE IF NOT EXISTS auto_purge_rules (
     enabled INTEGER DEFAULT 1,
     created_at INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS auto_purge_state (
+    guild_id TEXT PRIMARY KEY,
+    enabled INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL
+);
