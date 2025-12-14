@@ -5,6 +5,8 @@ const {
 } = require("discord.js");
 
 const db = require("../../../core/database");
+const handleWelcome = require("../../../modules/welcome/welcomeHandler");
+
 
 module.exports = {
     data: new SlashCommandBuilder()
