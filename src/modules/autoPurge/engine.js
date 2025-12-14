@@ -1,4 +1,4 @@
-const db = require("../database");
+const db = require("../../core/database");
 const logger = require("../../core/logger");
 const { log } = require("../../core/discordLogger");
 
