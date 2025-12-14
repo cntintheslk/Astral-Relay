@@ -10,6 +10,12 @@ const express = require("express");
 const app = express();
 const { log } = require("./src/core/discordLogger");
 
+ // --------------- BOT DISABLED GUARD ----------------
+if (process.env.BOT_DISABLED === "true") {
+    console.log("[system] BOT_DISABLED=true — staying offline.");
+    setInterval(() => {}, 1000); // keep process alive
+}
+
 // --------------- CONFIG VALIDATION ----------------
 validateConfig(config);
 
