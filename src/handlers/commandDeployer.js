@@ -4,29 +4,18 @@ const logger = require("../core/logger");
 const { log } = require("../core/discordLogger");
 
 async function deployCommands(client) {
-    const allCommands = Array.from(client.commands.values());
-
-    // Split commands by category
-    const globalCommands = allCommands
-        .filter(cmd => cmd.category === "global")
-        .map(cmd => cmd.data.toJSON());
-
-    const devCommands = allCommands
-        .filter(cmd => cmd.category === "dev")
+    const commands = Array.from(client.commands.values())
         .map(cmd => cmd.data.toJSON());
 
     const rest = new REST({ version: "10" }).setToken(config.token);
 
     try {
         if (config.environment === "production") {
-            // ======================================================
-            //  PRODUCTION MODE  →  GLOBAL COMMANDS ONLY
-            // ======================================================
-            logger.info(`(PROD) Deploying ${globalCommands.length} GLOBAL commands...`);
+            logger.info(`(PROD) Deploying ${commands.length} GLOBAL commands...`);
 
             await rest.put(
                 Routes.applicationCommands(client.user.id),
-                { body: globalCommands }
+                { body: commands }
             );
 
             logger.success("(PROD) Global commands deployed.");
@@ -34,19 +23,16 @@ async function deployCommands(client) {
             log(
                 "SUCCESS",
                 "Global Commands Deployed",
-                `**${globalCommands.length}** global commands deployed.\n\n` +
-                globalCommands.map(c => `• \`${c.name}\``).join("\n")
+                `**${commands.length}** commands deployed globally.\n\n` +
+                commands.map(c => `• \`${c.name}\``).join("\n")
             );
 
         } else {
-            // ======================================================
-            //  DEVELOPMENT MODE  →  DEV GUILD COMMANDS ONLY
-            // ======================================================
-            logger.info(`(DEV) Deploying ${devCommands.length} DEV commands to guild ${config.devGuildId}...`);
+            logger.info(`(DEV) Deploying ${commands.length} commands to dev guild ${config.devGuildId}...`);
 
             await rest.put(
                 Routes.applicationGuildCommands(client.user.id, config.devGuildId),
-                { body: devCommands }
+                { body: commands }
             );
 
             logger.success("(DEV) Dev guild commands deployed.");
@@ -54,14 +40,13 @@ async function deployCommands(client) {
             log(
                 "SUCCESS",
                 "Dev Commands Deployed",
-                `**${devCommands.length}** dev commands deployed to guild **${config.devGuildId}**.\n\n` +
-                devCommands.map(c => `• \`${c.name}\``).join("\n")
+                `**${commands.length}** commands deployed to dev guild **${config.devGuildId}**.\n\n` +
+                commands.map(c => `• \`${c.name}\``).join("\n")
             );
         }
 
     } catch (err) {
-        logger.error("Failed to deploy commands:");
-        console.error(err);
+        logger.error("Failed to deploy commands:", err);
 
         log(
             "ERROR",
