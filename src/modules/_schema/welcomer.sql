@@ -6,5 +6,5 @@ CREATE TABLE IF NOT EXISTS welcome_config (
     dm_enabled INTEGER DEFAULT 0,
     autoroles TEXT,
     created_at INTEGER,
-    updated at INTEGER
+    updated_at at INTEGER
 )
