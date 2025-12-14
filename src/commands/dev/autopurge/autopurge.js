@@ -1,3 +1,5 @@
+// src/src/commands/dev/autopurge/autopurge.js
+
 const {
     SlashCommandBuilder,
     EmbedBuilder,
@@ -7,6 +9,7 @@ const {
 const crypto = require("crypto");
 const db = require("../../../core/database");
 
+// ===== Helpers =====
 function toSeconds(duration, unit) {
     if (unit === "hours") return duration * 60 * 60;
     if (unit === "days") return duration * 24 * 60 * 60;
@@ -27,7 +30,13 @@ function safeLimit(str, max = 512) {
     return str.length > max ? str.slice(0, max - 3) + "..." : str;
 }
 
+function msToRoughHours(ms) {
+    return Math.max(0, Math.floor(ms / 1000 / 60 / 60));
+}
+
 module.exports = {
+    category: "dev",
+
     data: new SlashCommandBuilder()
         .setName("autopurge")
         .setDescription("Manage the automatic role-based purge system")
@@ -37,17 +46,17 @@ module.exports = {
         .addSubcommand(sub =>
             sub
                 .setName("status")
-                .setDescription("View auto-purge system status")
+                .setDescription("View auto-purge status and rule counts")
         )
 
         // ─────────────── PREVIEW ───────────────
         .addSubcommand(sub =>
             sub
                 .setName("preview")
-                .setDescription("Preview members that would be purged (requires engine implementation)")
+                .setDescription("Preview members that would be affected by enabled rules")
         )
 
-        // ─────────────── ENABLE / DISABLE (system) ───────────────
+        // ─────────────── ENABLE / DISABLE (system placeholders) ───────────────
         .addSubcommand(sub =>
             sub
                 .setName("enable")
@@ -109,7 +118,7 @@ module.exports = {
                 .addSubcommand(sub =>
                     sub
                         .setName("list")
-                        .setDescription("List all auto-purge rules")
+                        .setDescription("List all auto-purge rules for this server")
                 )
 
                 .addSubcommand(sub =>
@@ -146,7 +155,7 @@ module.exports = {
                 )
         )
 
-        // ─────────────── EXECUTION ───────────────
+        // ─────────────── EXECUTION (placeholders) ───────────────
         .addSubcommand(sub =>
             sub
                 .setName("dryrun")
@@ -159,9 +168,9 @@ module.exports = {
         ),
 
     async execute(interaction) {
+        const guildId = interaction.guild.id;
         const sub = interaction.options.getSubcommand();
         const group = interaction.options.getSubcommandGroup(false);
-        const guildId = interaction.guild.id;
 
         // ─────────────── STATUS ───────────────
         if (sub === "status") {
@@ -183,9 +192,9 @@ module.exports = {
                 .addFields(
                     { name: "Rules (total)", value: `${total}`, inline: true },
                     { name: "Rules (enabled)", value: `${enabled}`, inline: true },
-                    { name: "Live Mode", value: "❌ Disabled (not wired yet)", inline: true }
+                    { name: "Live Mode", value: "❌ Not wired yet", inline: true }
                 )
-                .setFooter({ text: "Tip: Use /autopurge rules list to view rule IDs." });
+                .setFooter({ text: "Use /autopurge rules list to copy rule IDs." });
 
             return interaction.reply({ embeds: [embed], ephemeral: true });
         }
@@ -195,12 +204,11 @@ module.exports = {
             const guild = interaction.guild;
             const now = Date.now();
 
-            // Fetch enabled rules for this guild
             const rules = db.prepare(`
                 SELECT *
                 FROM auto_purge_rules
                 WHERE guild_id = ? AND enabled = 1
-            `).all(guild.id);
+            `).all(guildId);
 
             if (!rules.length) {
                 return interaction.reply({
@@ -209,27 +217,22 @@ module.exports = {
                 });
             }
 
-            // Ensure member cache is populated
             await guild.members.fetch();
 
             const results = [];
 
             for (const rule of rules) {
                 for (const member of guild.members.cache.values()) {
-                    // Must have the target role
                     if (!member.roles.cache.has(rule.role_id)) continue;
-
-                    // Skip administrators
                     if (member.permissions.has("Administrator")) continue;
 
-                    // Fetch role assignment timestamp
                     const assignment = db.prepare(`
                         SELECT assigned_at
                         FROM role_assignments
                         WHERE guild_id = ?
-                        AND user_id = ?
-                        AND role_id = ?
-                    `).get(guild.id, member.id, rule.role_id);
+                          AND user_id = ?
+                          AND role_id = ?
+                    `).get(guildId, member.id, rule.role_id);
 
                     if (!assignment) continue;
 
@@ -238,11 +241,7 @@ module.exports = {
 
                     if (heldMs < requiredMs) continue;
 
-                    results.push({
-                        user: member.user,
-                        rule,
-                        heldMs
-                    });
+                    results.push({ user: member.user, rule, heldMs });
                 }
             }
 
@@ -253,16 +252,15 @@ module.exports = {
                 });
             }
 
-            // Limit output to prevent embed overflow
             const lines = results.slice(0, 15).map(r => {
-                const hoursHeld = Math.floor(r.heldMs / 1000 / 60 / 60);
-
+                const heldHours = msToRoughHours(r.heldMs);
                 return [
                     `👤 **${r.user.tag}**`,
                     `• Role: <@&${r.rule.role_id}>`,
+                    `• After: **${formatDuration(r.rule.duration_seconds)}** (held ~${heldHours}h)`,
                     `• Action: \`${r.rule.action}\``,
-                    `• Held: ~${hoursHeld}h`,
-                    `• Reason: ${r.rule.reason}`
+                    `• Rule ID: \`${r.rule.id}\``,
+                    `• Reason: ${safeLimit(r.rule.reason, 220)}`
                 ].join("\n");
             });
 
@@ -276,12 +274,8 @@ module.exports = {
                         : `${results.length} member(s) matched.`
                 });
 
-            return interaction.reply({
-                embeds: [embed],
-                ephemeral: true
-            });
+            return interaction.reply({ embeds: [embed], ephemeral: true });
         }
-
 
         // ─────────────── RULES ───────────────
         if (group === "rules") {
@@ -293,16 +287,10 @@ module.exports = {
                 const action = interaction.options.getString("action", true);
                 const reason = safeLimit(interaction.options.getString("reason", true), 512);
 
-                // Basic safety checks
                 if (role.id === interaction.guild.id) {
-                    return interaction.reply({
-                        ephemeral: true,
-                        content: "You can’t target the @everyone role."
-                    });
+                    return interaction.reply({ ephemeral: true, content: "You can’t target the @everyone role." });
                 }
 
-                // Discord managed/integration roles can be weird to remove; kicking is still possible.
-                // We’ll allow them, but warn in the response if action is remove_role.
                 const durationSeconds = toSeconds(duration, unit);
                 if (!durationSeconds) {
                     return interaction.reply({ ephemeral: true, content: "Invalid duration unit." });
@@ -330,7 +318,7 @@ module.exports = {
 
                 if (role.managed && action === "remove_role") {
                     embed.setFooter({
-                        text: "Note: This role is managed by an integration. Removing it may fail; preview/dryrun will reveal issues."
+                        text: "Note: This role is managed by an integration; removing it may fail when enforcement is added."
                     });
                 }
 
@@ -347,13 +335,9 @@ module.exports = {
                 `).all(guildId);
 
                 if (!rules.length) {
-                    return interaction.reply({
-                        ephemeral: true,
-                        content: "No auto-purge rules found for this server."
-                    });
+                    return interaction.reply({ ephemeral: true, content: "No auto-purge rules found for this server." });
                 }
 
-                // Build readable lines (Discord embed limits apply)
                 const lines = rules.slice(0, 20).map(r => {
                     const status = r.enabled ? "✅" : "⛔";
                     return [
@@ -371,17 +355,16 @@ module.exports = {
                     .setDescription(lines.join("\n\n"))
                     .setFooter({
                         text: rules.length > 20
-                            ? `Showing 20 of ${rules.length} rules. (Add pagination later if needed.)`
+                            ? `Showing 20 of ${rules.length} rules.`
                             : `${rules.length} rule(s) total.`
                     });
 
                 return interaction.reply({ embeds: [embed], ephemeral: true });
             }
 
-            // ENABLE / DISABLE rule
+            // ENABLE / DISABLE (rule)
             if (sub === "enable" || sub === "disable") {
                 const ruleId = interaction.options.getString("rule_id", true);
-
                 const existing = db.prepare(`
                     SELECT id, enabled
                     FROM auto_purge_rules
@@ -404,8 +387,8 @@ module.exports = {
                 `).run(newEnabled, ruleId, guildId);
 
                 const embed = new EmbedBuilder()
-                    .setTitle(sub === "enable" ? "✅ Rule Enabled" : "⛔ Rule Disabled")
-                    .setColor(sub === "enable" ? 0x57f287 : 0xed4245)
+                    .setTitle(newEnabled ? "✅ Rule Enabled" : "⛔ Rule Disabled")
+                    .setColor(newEnabled ? 0x57f287 : 0xed4245)
                     .setDescription(`Rule \`${ruleId}\` is now **${newEnabled ? "enabled" : "disabled"}**.`);
 
                 return interaction.reply({ embeds: [embed], ephemeral: true });
@@ -448,21 +431,18 @@ module.exports = {
                 return interaction.reply({ embeds: [embed], ephemeral: true });
             }
 
-            return interaction.reply({
-                ephemeral: true,
-                content: "Unknown rules subcommand."
-            });
+            return interaction.reply({ ephemeral: true, content: "Unknown rules subcommand." });
         }
 
-        // ─────────────── ENABLE / DISABLE (system) ───────────────
+        // ─────────────── SYSTEM ENABLE/DISABLE (placeholders) ───────────────
         if (sub === "enable" || sub === "disable") {
             return interaction.reply({
                 ephemeral: true,
-                content: `System-wide ${sub} is not implemented yet. (We’ll wire live-mode after dry-run + preview are verified.)`
+                content: "System live-mode enable/disable is not implemented yet. (Next step: dryrun + live toggle.)"
             });
         }
 
-        // ─────────────── EXECUTION ───────────────
+        // ─────────────── EXECUTION (placeholders) ───────────────
         if (sub === "dryrun" || sub === "run") {
             return interaction.reply({
                 ephemeral: true,
@@ -470,9 +450,6 @@ module.exports = {
             });
         }
 
-        return interaction.reply({
-            ephemeral: true,
-            content: "Unknown autopurge command."
-        });
+        return interaction.reply({ ephemeral: true, content: "Unknown autopurge command." });
     }
 };
