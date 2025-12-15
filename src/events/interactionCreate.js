@@ -3,22 +3,44 @@
 const logger = require("../core/logger");
 const config = require("../core/config");
 const { createErrorEmbed, createInfoEmbed, createSuccessEmbed } = require("../core/embedStyles");
+
 const dbAdminUI = require("../modules/dbadmin/dbAdminUI");
 const dbAdmin = require("../modules/dbadmin/dbAdmin");
 const approvalHandler = require("./interactionButtons/registrationApproval");
+
+const db = require("../core/database");
+
 const {
     ActionRowBuilder,
     ButtonBuilder,
     ButtonStyle
 } = require("discord.js");
 
+// ============================================================
+// HELPERS
+// ============================================================
 function isOwnerOrAdmin(interaction) {
     if (config.ownerIds?.includes(interaction.user.id)) return true;
     return interaction.member?.permissions?.has("Administrator");
 }
 
+/**
+ * Check if a module is enabled for a specific guild.
+ * Defaults to ENABLED if no record exists.
+ */
+function isModuleEnabled(guildId, moduleName) {
+    const row = db.prepare(`
+        SELECT enabled
+        FROM guild_modules
+        WHERE guild_id = ? AND module = ?
+    `).get(guildId, moduleName);
+
+    return row?.enabled !== 0;
+}
+
 module.exports = {
     name: "interactionCreate",
+
     async execute(interaction) {
         try {
             // ============================================================
@@ -30,9 +52,7 @@ module.exports = {
                 const table = interaction.values[0];
 
                 return interaction.update({
-                    embeds: [
-                        dbAdminUI.makeSchemaEmbed(table)
-                    ],
+                    embeds: [dbAdminUI.makeSchemaEmbed(table)],
                     components: dbAdminUI.makeMainPanel()
                 });
             }
@@ -107,7 +127,7 @@ module.exports = {
             }
 
             // ============================================================
-            // 4) SLASH COMMANDS
+            // 4) SLASH COMMANDS (WITH PER-GUILD MODULE GUARD)
             // ============================================================
             if (interaction.isChatInputCommand()) {
                 const command = interaction.client.commands.get(interaction.commandName);
@@ -120,6 +140,23 @@ module.exports = {
                     });
                 }
 
+                // 🔐 MODULE PER-GUILD ENABLE CHECK
+                if (command.module) {
+                    const guildId = interaction.guild?.id;
+
+                    if (guildId && !isModuleEnabled(guildId, command.module)) {
+                        return interaction.reply({
+                            embeds: [
+                                createInfoEmbed(
+                                    "Module Disabled",
+                                    `The **${command.module}** module is disabled in this server.`
+                                )
+                            ],
+                            flags: 64
+                        });
+                    }
+                }
+
                 await command.execute(interaction);
             }
 
@@ -130,18 +167,24 @@ module.exports = {
                 if (interaction.deferred || interaction.replied) {
                     await interaction.editReply({
                         embeds: [
-                            createErrorEmbed("Unexpected Error", "Something went wrong processing this interaction.")
+                            createErrorEmbed(
+                                "Unexpected Error",
+                                "Something went wrong processing this interaction."
+                            )
                         ]
                     });
                 } else {
                     await interaction.reply({
                         embeds: [
-                            createErrorEmbed("Unexpected Error", "Something went wrong processing this interaction.")
+                            createErrorEmbed(
+                                "Unexpected Error",
+                                "Something went wrong processing this interaction."
+                            )
                         ],
                         flags: 64
                     });
                 }
-            } catch (err2) {
+            } catch {
                 logger.error("Failed to send error reply for interaction.");
             }
         }

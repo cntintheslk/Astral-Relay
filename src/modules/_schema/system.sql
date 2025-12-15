@@ -15,3 +15,11 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS system_health (
     message_id TEXT
 );
+
+CREATE TABLE IF NOT EXISTS guild_modules (
+    guild_id TEXT NOT NULL,
+    module TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (guild_id, module)
+);
