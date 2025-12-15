@@ -1,5 +1,3 @@
-// src/src/commands/dev/features/features.js
-
 const {
     SlashCommandBuilder,
     EmbedBuilder,
@@ -9,7 +7,7 @@ const {
 const db = require("../../../core/database");
 
 // ============================================================
-// HELPERS
+// DB HELPERS
 // ============================================================
 
 function setFeatureState(guildId, feature, enabled) {
@@ -39,12 +37,16 @@ function listFeatures(client) {
 
     for (const command of client.commands.values()) {
         if (command.module) {
-            features.add(command.module);
+            features.add(command.module.toLowerCase());
         }
     }
 
     return Array.from(features).sort();
 }
+
+// ============================================================
+// COMMAND DEFINITION
+// ============================================================
 
 module.exports = {
     module: "core",
@@ -54,6 +56,7 @@ module.exports = {
         .setDescription("Enable or disable bot features for this server")
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 
+        // /features enable
         .addSubcommand(sub =>
             sub
                 .setName("enable")
@@ -63,9 +66,11 @@ module.exports = {
                         .setName("name")
                         .setDescription("Feature name")
                         .setRequired(true)
+                        .setAutocomplete(true)
                 )
         )
 
+        // /features disable
         .addSubcommand(sub =>
             sub
                 .setName("disable")
@@ -75,24 +80,30 @@ module.exports = {
                         .setName("name")
                         .setDescription("Feature name")
                         .setRequired(true)
+                        .setAutocomplete(true)
                 )
         )
 
+        // /features status
         .addSubcommand(sub =>
             sub
                 .setName("status")
                 .setDescription("View feature enable/disable status for this server")
         ),
 
+    // ============================================================
+    // EXECUTION
+    // ============================================================
+
     async execute(interaction) {
         const guildId = interaction.guild.id;
         const sub = interaction.options.getSubcommand();
-
         const features = listFeatures(interaction.client);
 
         // ============================================================
         // ENABLE / DISABLE
         // ============================================================
+
         if (sub === "enable" || sub === "disable") {
             const feature = interaction.options
                 .getString("name", true)
@@ -123,12 +134,16 @@ module.exports = {
                         : "Commands for this feature are now blocked."
                 });
 
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.reply({
+                embeds: [embed],
+                ephemeral: true
+            });
         }
 
         // ============================================================
         // STATUS
         // ============================================================
+
         if (sub === "status") {
             if (!features.length) {
                 return interaction.reply({
@@ -150,8 +165,15 @@ module.exports = {
                     text: "Disabled features cannot be used in this server."
                 });
 
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.reply({
+                embeds: [embed],
+                ephemeral: true
+            });
         }
+
+        // ============================================================
+        // FALLBACK
+        // ============================================================
 
         return interaction.reply({
             ephemeral: true,
