@@ -1,6 +1,7 @@
 // ============================================================
 // ASTRAL RELAY — COMMAND DEPLOYER
-// Handles global, guild, and forced refresh deployments.
+// Responsible for registering slash commands with Discord.
+// Enforces environment safety and scope-based deployment.
 // ============================================================
 
 const { REST, Routes } = require("discord.js");
@@ -9,19 +10,25 @@ const logger = require("../core/logger");
 const { log } = require("../core/discordLogger");
 
 // ------------------------------------------------------------
-// INTERNAL HELPERS
+// INTERNAL UTILITIES
 // ------------------------------------------------------------
 
+/**
+ * Returns all loaded command objects.
+ */
 function getAllCommands(client) {
     return Array.from(client.commands.values());
 }
 
+/**
+ * Converts command definitions to Discord JSON payloads.
+ */
 function toJSON(commands) {
     return commands.map(cmd => cmd.data.toJSON());
 }
 
 // ------------------------------------------------------------
-// STANDARD DEPLOY (USED ON STARTUP)
+// STANDARD DEPLOYMENT (CALLED ON STARTUP)
 // ------------------------------------------------------------
 
 async function deployCommands(client) {
@@ -29,42 +36,39 @@ async function deployCommands(client) {
     const allCommands = getAllCommands(client);
 
     try {
+        // =====================================================
+        // PRODUCTION — GLOBAL COMMANDS ONLY
+        // =====================================================
         if (config.environment === "production") {
-            // ---------------------------------------------
-            // PROD — GLOBAL COMMANDS ONLY
-            // ---------------------------------------------
-
             const globalCommands = allCommands
-                .filter(cmd => cmd.scope === "global")
-                .map(cmd => cmd.data.toJSON());
+                .filter(cmd => cmd.scope === "global");
 
             logger.info(
-                `(PROD) Deploying ${globalCommands.length} global commands...`
+                `(PROD) Deploying ${globalCommands.length} global commands.`
             );
 
             await rest.put(
                 Routes.applicationCommands(client.user.id),
-                { body: globalCommands }
+                { body: toJSON(globalCommands) }
             );
 
-            logger.success("(PROD) Global commands deployed.");
+            logger.success("(PROD) Global command deployment complete.");
 
             log(
                 "SUCCESS",
                 "Global Commands Deployed",
                 `**${globalCommands.length}** commands deployed globally.\n\n` +
-                globalCommands.map(c => `• \`${c.name}\``).join("\n")
+                globalCommands.map(c => `• \`${c.data.name}\``).join("\n")
             );
 
+        // =====================================================
+        // DEVELOPMENT — ALL LOADED COMMANDS TO DEV GUILD
+        // =====================================================
         } else {
-            // ---------------------------------------------
-            // DEV — ALL LOADED COMMANDS → DEV GUILD
-            // ---------------------------------------------
-
             const devCommands = toJSON(allCommands);
 
             logger.info(
-                `(DEV) Deploying ${devCommands.length} commands to dev guild ${config.devGuildId}...`
+                `(DEV) Deploying ${devCommands.length} commands to dev guild ${config.devGuildId}.`
             );
 
             await rest.put(
@@ -75,7 +79,7 @@ async function deployCommands(client) {
                 { body: devCommands }
             );
 
-            logger.success("(DEV) Dev guild commands deployed.");
+            logger.success("(DEV) Dev guild command deployment complete.");
 
             log(
                 "SUCCESS",
@@ -100,22 +104,22 @@ async function deployCommands(client) {
 
 // ------------------------------------------------------------
 // FORCED REFRESH (WIPE + REDEPLOY)
+// DEV-ONLY SAFETY IS ENFORCED BY CALLER
 // ------------------------------------------------------------
 
 async function refreshCommands(client) {
     const rest = new REST({ version: "10" }).setToken(config.token);
     const allCommands = getAllCommands(client);
 
-    logger.warn("Forcing slash command refresh.", {
+    logger.warn("Manual slash command refresh initiated.", {
         environment: config.environment,
         commandCount: allCommands.length,
     });
 
+    // =========================================================
+    // PRODUCTION — GLOBAL WIPE + REDEPLOY (OWNER-GATED)
+    // =========================================================
     if (config.environment === "production") {
-        // ---------------------------------------------
-        // PROD — GLOBAL WIPE + REDEPLOY
-        // ---------------------------------------------
-
         const globalCommands = allCommands
             .filter(cmd => cmd.scope === "global");
 
@@ -129,11 +133,10 @@ async function refreshCommands(client) {
             { body: toJSON(globalCommands) }
         );
 
+    // =========================================================
+    // DEVELOPMENT — DEV GUILD WIPE + REDEPLOY
+    // =========================================================
     } else {
-        // ---------------------------------------------
-        // DEV — GUILD WIPE + REDEPLOY
-        // ---------------------------------------------
-
         await rest.put(
             Routes.applicationGuildCommands(
                 client.user.id,
@@ -151,7 +154,7 @@ async function refreshCommands(client) {
         );
     }
 
-    logger.success("Slash command refresh completed.");
+    logger.success("Slash command refresh completed successfully.");
 }
 
 // ------------------------------------------------------------
