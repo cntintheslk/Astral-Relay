@@ -4,7 +4,7 @@ const db = require("../../../../services/database");
 const logger = require("../../../../core/logger");
 
 // NEW IMPORT
-const { sendRegLog } = require("../../../../services/registrationLogHelper");
+const { sendRegLog } = require("../../../../services/registrationLogService");
 
 module.exports = {
     scope: "global",
