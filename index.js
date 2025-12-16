@@ -1,4 +1,7 @@
-// index.js
+// ============================================================
+// Astral Relay — Application Entry Point
+// ============================================================
+
 const createClient = require("./src/core/client");
 const loadEvents = require("./src/handlers/events");
 const logger = require("./src/core/logger");
@@ -6,143 +9,175 @@ require("./src/services/database");
 const { loadSchemas } = require("./src/modules/_schema");
 const validateConfig = require("./src/core/configValidator");
 const config = require("./src/core/config");
+
 const express = require("express");
 const app = express();
-const { log } = require("./src/core/discordLogger");
 
- // --------------- BOT DISABLED GUARD ----------------
+// ============================================================
+// BOT DISABLED GUARD
+// ============================================================
+
 if (process.env.BOT_DISABLED === "true") {
-    console.log("[system] BOT_DISABLED=true — staying offline.");
-    setInterval(() => {}, 1000); // keep process alive
+    logger.warn("BOT_DISABLED=true — staying offline.");
+    setInterval(() => {}, 1000);
 }
 
-// --------------- CONFIG VALIDATION ----------------
+// ============================================================
+// CONFIG VALIDATION
+// ============================================================
+
 validateConfig(config);
 
-// --------------- TOKEN VALIDATION ----------------
+// ============================================================
+// TOKEN VALIDATION
+// ============================================================
+
 if (!config.token) {
-    logger.error("BOT_TOKEN environment variable is missing. Set it in Render.");
+    logger.critical("BOT_TOKEN environment variable is missing.");
     process.exit(1);
 }
 
-// --------------- LOAD SQL SCHEMA ----------------
+// ============================================================
+// LOAD SQL SCHEMA
+// ============================================================
+
 loadSchemas();
 
-// --------------- CREATE DISCORD CLIENT ----------------
+// ============================================================
+// CREATE DISCORD CLIENT
+// ============================================================
+
 const client = createClient();
 
-// --------------- DISCORD EVENT HANDLER ----------------
+// ============================================================
+// DISCORD EVENT HANDLERS
+// ============================================================
+
 loadEvents(client);
 
-// --------------- CRASH HANDLER ----------------
+// ============================================================
+// PROCESS CRASH HANDLERS
+// ============================================================
+
 process.on("unhandledRejection", (err) => {
-    logger.error("Unhandled Promise Rejection:");
-    console.error(err);
+    logger.error("Unhandled Promise Rejection", {
+        error: err?.stack || err?.message || String(err),
+    });
 });
 
 process.on("uncaughtException", (err) => {
-    logger.error("Uncaught Exception:");
-    console.error(err);
+    logger.critical("Uncaught Exception", {
+        error: err?.stack || err?.message || String(err),
+    });
 });
 
-// --------------- EXPRESS SETUP ----------------
+// ============================================================
+// EXPRESS SETUP
+// ============================================================
+
 app.use(express.json());
 
-// --------------- HEALTH CHECK ROUTE ----------------
-app.get("/", (req, res) => {
+// ============================================================
+// HEALTH CHECK
+// ============================================================
+
+app.get("/", (_req, res) => {
     res.status(200).send("Astral Relay is running.");
 });
 
-// --------------- GITHUB VALIDATION ----------------
-app.get("/webhooks/github", (req, res) => {
+// ============================================================
+// GITHUB WEBHOOK VALIDATION
+// ============================================================
+
+app.get("/webhooks/github", (_req, res) => {
     res.status(200).send("GitHub Webhook Endpoint Active");
 });
 
-// --------------- GITHUB WEBHOOK VALIDATION ----------------
+// ============================================================
+// GITHUB WEBHOOK HANDLER
+// ============================================================
+
 app.post("/webhooks/github", (req, res) => {
     const event = req.headers["x-github-event"];
     const payload = req.body;
 
-    console.log(`[GitHub Webhook] Event received: ${event}`);
+    logger.info("GitHub webhook received.", { event });
 
-    // Always respond immediately so GitHub does not retry
     res.status(200).json({ status: "received" });
 
-    // What channel to send to in Discord
-    const changeLogChannel = client.channels.cache.get(process.env.BOT_CHANGELOGS);
+    const channelId = process.env.BOT_CHANGELOGS;
+    const channel = client.channels.cache.get(channelId);
 
-    if (!changeLogChannel) {
-        console.error("Webhook Error: Unable to find BOT_CHANGELOGS channel:", process.env.BOT_CHANGELOGS);
+    if (!channel) {
+        logger.warn("BOT_CHANGELOGS channel not found.", { channelId });
         return;
     }
 
-    // Process push events → send changelog
     if (event === "push") {
         const commits = payload.commits
-            ?.map(c => `• **${c.message.trim()}** (${c.id.slice(0,7)})`)
+            ?.map(c => `• **${c.message.trim()}** (${c.id.slice(0, 7)})`)
             .join("\n");
 
-        changeLogChannel.send({
+        channel.send({
             embeds: [{
                 title: `📦 Push to ${payload.ref.replace("refs/heads/", "")}`,
                 description: commits || "No commit messages.",
                 color: 0x5865f2,
                 timestamp: new Date(),
-                footer: { text: `Repo: ${payload.repository.full_name}` }
-            }]
+                footer: { text: `Repo: ${payload.repository.full_name}` },
+            }],
         });
     }
 });
 
-// --------------- START SERVER AFTER BOT IS READY ----------------
+// ============================================================
+// START WEB SERVER AFTER BOT READY
+// ============================================================
+
 client.once("ready", () => {
-    console.log("[SUCCESS] Bot is ready. Starting webhook server...");
+    logger.success("Bot is ready.");
 
     const PORT = process.env.PORT || 10000;
 
     setTimeout(() => {
         app.listen(PORT, () => {
-            console.log(`Webhook server running on port ${PORT}`);
-
-            log("INFO", "Webhook Server", `Webhook server running on **port ${PORT}**`);
+            logger.success("Webhook server running.", { port: PORT });
         });
-    }, 500); // 0.5 second buffer
+    }, 500);
 });
 
-// --------------- DAILY AUTORESTART AT 00:00 UTC ----------------
+// ============================================================
+// DAILY AUTO-RESTART (00:00 UTC)
+// ============================================================
+
 function scheduleDailyRestart() {
     const now = new Date();
-
-    // Next midnight UTC
     const next = new Date(now);
+
     next.setUTCHours(0, 0, 0, 0);
+    if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
 
-    // If we've already passed today's 00:00 UTC, go to tomorrow
-    if (next <= now) {
-        next.setUTCDate(next.getUTCDate() + 1);
-    }
+    const seconds = Math.round((next - now) / 1000);
 
-    const msUntilRestart = next.getTime() - now.getTime();
-
-    console.log(
-        `[system] Scheduled daily restart at 00:00 UTC in ${Math.round(
-            msUntilRestart / 1000
-        )} seconds.`
-    );
+    logger.info("Daily restart scheduled.", {
+        target: "00:00 UTC",
+        secondsUntilRestart: seconds,
+    });
 
     setTimeout(() => {
-        console.log("[system] Daily scheduled restart: exiting process with code 0.");
-        // You can log to Discord here if you want, but keep it simple:
+        logger.warn("Daily scheduled restart executing.");
         process.exit(0);
-    }, msUntilRestart);
+    }, next - now);
 }
 
-// call this once on startup
 scheduleDailyRestart();
 
+// ============================================================
+// LOGIN
+// ============================================================
 
-// --------------- CLIENT LOGIN ----------------
-client.login(config.token).catch((err) => {
-    logger.error("Failed to login:");
-    console.error(err);
+client.login(config.token).catch(err => {
+    logger.critical("Failed to login to Discord.", {
+        error: err?.stack || err?.message || String(err),
+    });
 });
