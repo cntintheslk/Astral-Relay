@@ -7,7 +7,6 @@
 const { REST, Routes } = require("discord.js");
 const config = require("../core/config");
 const logger = require("../core/logger");
-const { log } = require("../core/discordLogger");
 
 // ------------------------------------------------------------
 // INTERNAL HELPERS
@@ -21,9 +20,16 @@ function getValidatedCommands(client) {
     const valid = [];
 
     for (const cmd of client.commands.values()) {
+        if (!cmd?.data?.name) {
+            logger.warn("Invalid command object skipped.", {
+                file: cmd?.filePath || "unknown",
+            });
+            continue;
+        }
+
         if (!cmd.scope) {
             logger.warn("Command missing scope — skipped.", {
-                name: cmd.data?.name,
+                name: cmd.data.name,
                 file: cmd.filePath || "unknown",
             });
             continue;
@@ -43,12 +49,17 @@ function toJSON(commands) {
 }
 
 // ------------------------------------------------------------
-// STANDARD DEPLOYMENT (STARTUP)
+// STANDARD DEPLOYMENT (CALLED ON STARTUP)
 // ------------------------------------------------------------
 
 async function deployCommands(client) {
     const rest = new REST({ version: "10" }).setToken(config.token);
     const commands = getValidatedCommands(client);
+
+    if (!commands.length) {
+        logger.warn("No valid commands found to deploy.");
+        return;
+    }
 
     try {
         // =====================================================
@@ -59,23 +70,18 @@ async function deployCommands(client) {
                 cmd => cmd.scope === "global"
             );
 
-            logger.info(
-                `(PROD) Deploying ${globalCommands.length} global commands.`
-            );
+            logger.info("(PROD) Deploying global commands.", {
+                count: globalCommands.length,
+            });
 
             await rest.put(
                 Routes.applicationCommands(client.user.id),
                 { body: toJSON(globalCommands) }
             );
 
-            logger.success("(PROD) Global command deployment complete.");
-
-            log(
-                "SUCCESS",
-                "Global Commands Deployed",
-                `**${globalCommands.length}** commands deployed globally.\n\n` +
-                globalCommands.map(c => `• \`${c.data.name}\``).join("\n")
-            );
+            logger.success("Global command deployment complete.", {
+                count: globalCommands.length,
+            });
 
         // =====================================================
         // DEVELOPMENT — ALL COMMANDS TO DEV GUILD
@@ -85,9 +91,10 @@ async function deployCommands(client) {
                 throw new Error("DEV_GUILD_ID is not configured.");
             }
 
-            logger.info(
-                `(DEV) Deploying ${commands.length} commands to dev guild ${config.devGuildId}.`
-            );
+            logger.info("(DEV) Deploying commands to dev guild.", {
+                guildId: config.devGuildId,
+                count: commands.length,
+            });
 
             await rest.put(
                 Routes.applicationGuildCommands(
@@ -97,26 +104,18 @@ async function deployCommands(client) {
                 { body: toJSON(commands) }
             );
 
-            logger.success("(DEV) Dev guild command deployment complete.");
-
-            log(
-                "SUCCESS",
-                "Dev Commands Deployed",
-                `**${commands.length}** commands deployed to dev guild **${config.devGuildId}**.\n\n` +
-                commands.map(c => `• \`${c.data.name}\``).join("\n")
-            );
+            logger.success("Dev guild command deployment complete.", {
+                guildId: config.devGuildId,
+                count: commands.length,
+            });
         }
 
     } catch (err) {
-        logger.error("Command deployment failed.", {
-            error: err?.stack || err.message,
+        logger.critical("Command deployment failed.", {
+            error: err?.stack || err?.message || String(err),
         });
 
-        log(
-            "ERROR",
-            "Command Deployment Failed",
-            err?.message || String(err)
-        );
+        throw err; // allow ready.js to report fatal startup failures
     }
 }
 
@@ -133,6 +132,11 @@ async function refreshCommands(client) {
         environment: config.environment,
         commandCount: commands.length,
     });
+
+    if (!commands.length) {
+        logger.warn("No commands available to refresh.");
+        return;
+    }
 
     // =========================================================
     // PRODUCTION — GLOBAL WIPE + REDEPLOY
@@ -173,7 +177,10 @@ async function refreshCommands(client) {
         );
     }
 
-    logger.success("Slash command refresh completed successfully.");
+    logger.success("Slash command refresh completed successfully.", {
+        environment: config.environment,
+        count: commands.length,
+    });
 }
 
 // ------------------------------------------------------------
