@@ -9,6 +9,7 @@ const logger = require("../../core/logger");
 const { createInfoEmbed } = require("../../core/embedStyles");
 
 module.exports = {
+    scope: "in_development",
     data: new SlashCommandBuilder()
         .setName("system")
         .setDescription("System administration commands")

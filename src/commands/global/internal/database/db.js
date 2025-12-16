@@ -23,6 +23,7 @@ function isAuthorised(interaction) {
 }
 
 module.exports = {
+    scope: "global",
     data: new SlashCommandBuilder()
         .setName("db")
         .setDescription("Database administration tools (owners/admins only)")

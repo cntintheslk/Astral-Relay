@@ -4,6 +4,7 @@ const { getSettings } = require("../../../../modules/registration/settingsStore"
 const { createInfoEmbed } = require("../../../../core/embedStyles");
 
 module.exports = {
+    scope: "global",
     data: new SlashCommandBuilder()
         .setName("registration-review")
         .setDescription("View all pending registration requests (approvers only)")

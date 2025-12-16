@@ -49,8 +49,8 @@ function listFeatures(client) {
 // ============================================================
 
 module.exports = {
+    scope: "in_development",
     module: "core",
-
     data: new SlashCommandBuilder()
         .setName("features")
         .setDescription("Enable or disable bot features for this server")

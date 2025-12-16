@@ -2,6 +2,7 @@ const { SlashCommandBuilder } = require("discord.js");
 const db = require("../../../services/database");
 
 module.exports = {
+    scope: "global",
     data: new SlashCommandBuilder()
         .setName("dbschema")
         .setDescription("Prints the live registrations table schema to logs (dev only)"),

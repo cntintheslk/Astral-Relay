@@ -39,6 +39,7 @@ function isGuildAdminOrOwner(interaction) {
 }
 
 module.exports = {
+    scope: "global",
     data: new SlashCommandBuilder()
         .setName("registration")
         .setDescription("Configure the R1–R5 registration system (admins only)")

@@ -1,45 +1,53 @@
 // ============================================================
 // ASTRAL RELAY — READY EVENT
-// Initialises runtime services after Discord connection.
 // ============================================================
 
 const logger = require("../core/logger");
-const { setLogChannel, handleLog } = require("../core/discordLogger");
 const config = require("../core/config");
+const deployCommands = require("../handlers/commandDeployer");
+const { setLogChannel, handleLog } = require("../core/discordLogger");
 
 module.exports = {
     name: "ready",
     once: true,
 
     async execute(client) {
-        // ----------------------------------------------------
-        // DISCORD LOGGING SETUP
-        // ----------------------------------------------------
+        logger.success("Bot logged in.", {
+            user: client.user.tag,
+            id: client.user.id,
+        });
 
-        if (config.logChannelId) {
-            const channel = client.channels.cache.get(config.logChannelId);
+        // ---------------------------------------------
+        // Initialise Discord logging sink
+        // ---------------------------------------------
+        const logChannelId =
+            config.environment === "production"
+                ? config.logChannelId
+                : config.devHealthChannelId || config.logChannelId;
 
-            if (channel) {
-                setLogChannel(channel);
+        const channel = client.channels.cache.get(logChannelId);
 
-                // Attach Discord sink to core logger
-                logger.attachDiscordSink(handleLog);
+        if (channel) {
+            logger.attachDiscordSink(handleLog);
+            setLogChannel(channel);
 
-                logger.success("Discord logging initialised.", {
-                    channelId: config.logChannelId,
-                });
-            } else {
-                logger.warn("Log channel not found.", {
-                    channelId: config.logChannelId,
-                });
-            }
+            logger.success("Discord logging initialised.", {
+                channelId: logChannelId,
+            });
         } else {
-            logger.warn("LOG_CHANNEL_ID not set — Discord logging disabled.");
+            logger.warn("Log channel not found.", { logChannelId });
         }
 
-        // ----------------------------------------------------
-        // RUNTIME INFO
-        // ----------------------------------------------------
+        // ---------------------------------------------
+        // DEPLOY COMMANDS (THIS IS THE CRITICAL BIT)
+        // ---------------------------------------------
+        try {
+            await deployCommands(client);
+        } catch (err) {
+            logger.critical("Command deployment failed.", {
+                error: err?.stack || err?.message || String(err),
+            });
+        }
 
         logger.info("Runtime environment ready.", {
             environment: config.environment,

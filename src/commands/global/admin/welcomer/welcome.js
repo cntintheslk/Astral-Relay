@@ -9,6 +9,7 @@ const handleWelcome = require("../../../modules/welcome/welcomeHandler");
 
 
 module.exports = {
+    scope: "global",
     data: new SlashCommandBuilder()
         .setName("welcome")
         .setDescription("Configure the welcome system")

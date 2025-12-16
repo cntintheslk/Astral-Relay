@@ -14,6 +14,7 @@ const { log } = require("../../../../core/discordLogger");
 const path = require("path");
 
 module.exports = {
+    scope: "global",
     data: new SlashCommandBuilder()
         .setName("module")
         .setDescription("Manage bot modules (developers only)")

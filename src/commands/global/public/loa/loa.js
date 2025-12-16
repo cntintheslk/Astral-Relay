@@ -15,6 +15,7 @@ const getRegistrationInfo = require("../../../../modules/loa/getRegistrationInfo
 const { randomUUID } = require("crypto");
 
 module.exports = {
+    scope: "global",
     data: new SlashCommandBuilder()
         .setName("loa")
         .setDescription("Manage Leave of Absence (LOA).")

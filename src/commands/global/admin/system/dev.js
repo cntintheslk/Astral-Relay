@@ -5,6 +5,7 @@ const logger = require("../../../core/logger");
 const { log } = require("../../../core/discordLogger");
 
 module.exports = {
+    scope: "global",
     data: new SlashCommandBuilder()
         .setName("dev")
         .setDescription("Developer utility commands")
