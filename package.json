@@ -1,6 +1,6 @@
 {
   "name": "astral-relay",
-  "version": "2.1.16",
+  "version": "2.1.17",
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
