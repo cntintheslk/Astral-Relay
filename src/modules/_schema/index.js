@@ -5,7 +5,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const db = require("../../core/database");
+const db = require("../../services/database");
 const logger = require("../../core/logger");
 
 // ------------------------------------------------------------
