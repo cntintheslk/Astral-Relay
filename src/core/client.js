@@ -4,7 +4,7 @@
 // client instance. No side effects, no lifecycle control.
 // ============================================================
 
-const { Client, GatewayIntentBits, Partials } = require("discord.js");
+const { Client, GatewayIntentBits, Partials, Collection } = require("discord.js");
 
 // ------------------------------------------------------------
 // INTENT DECLARATIONS
