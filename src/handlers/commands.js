@@ -32,7 +32,7 @@ function loadCommands(client) {
                 continue;
             }
 
-            command.scope = scope; // global | in_development
+            command.scope = scope; // global | In_Development
             client.commands.set(command.data.name, command);
         }
     }
@@ -51,9 +51,9 @@ function loadCommands(client) {
     // --------------------------------------------------------
 
     if (isDev) {
-        const devPath = path.join(basePath, "in_development");
+        const devPath = path.join(basePath, "In_Development");
         if (fs.existsSync(devPath)) {
-            loadDirectory(devPath, "in_development");
+            loadDirectory(devPath, "In_Development");
         }
     }
 
