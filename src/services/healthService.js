@@ -8,8 +8,6 @@ const { performance } = require("perf_hooks");
 const db = require("./database");
 const moduleRegistry = require("./moduleRegistry");
 const config = require("../core/config");
-const guild = client.guilds.cache.first();
-const guildId = guild?.id;
 
 // ------------------------------------------------------------
 // INTERNAL MEASUREMENTS
@@ -61,6 +59,8 @@ async function collectHealth(client) {
     const memory = process.memoryUsage();
     const dbStatus = await measureDbStatus();
     const eventLoopDelay = await measureEventLoopDelay();
+    const guild = client.guilds.cache.first();
+    const guildId = guild?.id;
 
     const status = determineStatus({
         db: dbStatus,
