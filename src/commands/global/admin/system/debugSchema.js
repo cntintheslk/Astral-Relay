@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require("discord.js");
-const db = require("../../../services/database");
+const db = require("../../../../services/database");
 
 module.exports = {
     scope: "global",
