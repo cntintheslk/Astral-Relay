@@ -4,7 +4,7 @@ const logger = require("../../core/logger");
 const db = require("../../core/database");
 
 module.exports = {
-    name: "welcomer",
+    module: "welcomer",
     description: "Handles welcome messages when members join the server",
 
     /**
