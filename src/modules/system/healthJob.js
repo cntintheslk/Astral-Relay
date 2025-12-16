@@ -1,6 +1,6 @@
 const { log } = require("../../core/discordLogger");
 const { buildHealthEmbed } = require("./buildHealthEmbed");
-const { getHealthMessageId, setHealthMessageId } = require("../../core/systemHealthStore");
+const { getHealthMessageId, setHealthMessageId } = require("../../services/systemHealthStore");
 
 let lastTick = Date.now();
 

@@ -46,6 +46,7 @@ async function runDailyAutoPurge(client) {
 
 module.exports = {
     name: "autoPurge",
+    module: "autopurge",
     description: "Role-based automatic purge system (daily 12:00 UTC scheduler)",
     enabled: true,
 

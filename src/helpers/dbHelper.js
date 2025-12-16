@@ -1,7 +1,7 @@
 // src/core/dbHelpers.js
 const db = require("./database");
-const { log } = require("./discordLogger");
-const logger = require("./logger");
+const { log } = require("../core/discordLogger");
+const logger = require("../core/logger");
 
 // --------------------
 // RUN (INSERT/UPDATE/DELETE)

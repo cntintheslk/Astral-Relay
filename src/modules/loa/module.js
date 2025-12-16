@@ -4,7 +4,7 @@ const { randomUUID } = require("crypto");
 
 module.exports = {
     name: "loa",
-
+    module: "loa",
     init(client) {
         console.log("[module:loa] Initializing LOA module...");
 

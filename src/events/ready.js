@@ -1,74 +1,101 @@
-// src/events/ready.js
+// ============================================================
+// ASTRAL RELAY — READY EVENT
+// Final integration point once the Discord client is online.
+// Responsible for wiring core systems and starting subsystems.
+// ============================================================
 
 const logger = require("../core/logger");
-const { setLogChannel, log } = require("../core/discordLogger");
+const discordLogger = require("../core/discordLogger");
 const config = require("../core/config");
 const { loadAllModules } = require("../core/moduleRegistry");
 const loadCommands = require("../handlers/commands");
 const deployCommands = require("../handlers/commandDeployer");
 
-// ----------------------------
-// Daily Restart Scheduler
-// ----------------------------
+// ------------------------------------------------------------
+// DAILY RESTART SCHEDULER
+// ------------------------------------------------------------
+
 function scheduleDailyRestart() {
     const now = new Date();
     const next = new Date(now);
     next.setUTCHours(0, 0, 0, 0);
     if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
+
     const msUntilRestart = next.getTime() - now.getTime();
 
-    log(
-        "INFO",
-        "Daily Restart Scheduled",
-        `Next restart at <t:${Math.floor(next.getTime() / 1000)}:F> (00:00 UTC).`
+    logger.info(
+        `Daily restart scheduled for ${next.toISOString()} (00:00 UTC).`
     );
 
     setTimeout(() => {
-        log(
-            "INFO",
-            "Daily Restart Executing",
-            "Process exiting with code 0 for scheduled daily restart."
+        logger.info(
+            "Executing scheduled daily restart — process exiting with code 0."
         );
-        // small delay so the log has a chance to send
+
+        // Allow time for final telemetry to flush
         setTimeout(() => process.exit(0), 2000);
     }, msUntilRestart);
 }
+
+// ------------------------------------------------------------
+// EVENT HANDLER
+// ------------------------------------------------------------
 
 module.exports = {
     name: "ready",
     once: true,
 
     async execute(client) {
-        logger.success(`Bot logged in as ${client.user.tag}`);
+        // --------------------------------------------------------
+        // CLIENT ONLINE
+        // --------------------------------------------------------
 
-        // Fetch log channel
-        const channel = client.channels.cache.get(config.logChannelId);
+        logger.success(`Connected to Discord as ${client.user.tag}`);
 
-        if (!channel) {
-            logger.warn("LOG_CHANNEL_ID is invalid or missing in environment/config.");
+        // --------------------------------------------------------
+        // DISCORD LOGGING INITIALISATION
+        // --------------------------------------------------------
+
+        const logChannel = client.channels.cache.get(config.logChannelId);
+
+        if (!logChannel) {
+            logger.warn(
+                "LOG_CHANNEL_ID is invalid or inaccessible — Discord telemetry disabled."
+            );
         } else {
-            setLogChannel(channel, client);
+            // Bind Discord sink and attach it to the core logger
+            discordLogger.setLogChannel(logChannel, client);
+            logger.attachDiscordLogger(discordLogger);
 
-            // Send startup embed
-            log(
-                "SUCCESS",
-                "Bot Online",
-                `Astral Relay is now operational.\nNode: \`${process.version}\`\nEnv: \`${config.environment || "production"}\``
+            logger.success(
+                "Discord telemetry channel successfully initialised.",
+                {
+                    channelId: config.logChannelId,
+                }
             );
         }
 
-        logger.info(`Environment: ${config.environment || "production"}`);
-        logger.info(`Node Version: ${process.version}`);
+        // --------------------------------------------------------
+        // ENVIRONMENT TELEMETRY
+        // --------------------------------------------------------
 
-        // 🔹 Load all modules AFTER logging is up
+        logger.info("Runtime environment initialised.", {
+            environment: config.environment,
+            node: process.version,
+        });
+
+        // --------------------------------------------------------
+        // COMMAND & MODULE INITIALISATION
+        // --------------------------------------------------------
+
         loadCommands(client);
         await deployCommands(client);
-        
         await loadAllModules(client);
 
-        // ----------------------------
-        // Start Daily Restart Timer
-        // ----------------------------
+        // --------------------------------------------------------
+        // SCHEDULERS
+        // --------------------------------------------------------
+
         scheduleDailyRestart();
     },
 };

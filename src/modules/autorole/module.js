@@ -4,6 +4,7 @@ const db = require("../../core/database");
 
 module.exports = {
     name: "autorole",
+    module: "autorole",
     description: "Automatically assigns configured roles to new members.",
     environment: "production", // Only load in production (optional)
 

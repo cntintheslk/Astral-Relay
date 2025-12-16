@@ -1,57 +1,32 @@
-// src/events/interactionCreate.js
+// ============================================================
+// ASTRAL RELAY — INTERACTION CREATE EVENT
+// Central dispatcher for all Discord interactions.
+// ============================================================
 
 const logger = require("../core/logger");
-const config = require("../core/config");
-const { createErrorEmbed, createInfoEmbed, createSuccessEmbed } = require("../core/embedStyles");
-
-const dbAdminUI = require("../modules/dbadmin/dbAdminUI");
-const dbAdmin = require("../modules/dbadmin/dbAdmin");
-const approvalHandler = require("./interactionButtons/registrationApproval");
-
-const db = require("../core/database");
-
 const {
-    ActionRowBuilder,
-    ButtonBuilder,
-    ButtonStyle
-} = require("discord.js");
+    createErrorEmbed,
+    createInfoEmbed,
+} = require("../core/embedStyles");
+
+const approvalHandler = require("./interactionButtons/registrationApproval");
+const dbAdminService = require("../services/dbAdminService");
+const moduleRegistry = require("../services/moduleRegistry");
 
 // ============================================================
-// HELPERS
+// EVENT HANDLER
 // ============================================================
-function isOwnerOrAdmin(interaction) {
-    if (config.ownerIds?.includes(interaction.user.id)) return true;
-    return interaction.member?.permissions?.has("Administrator");
-}
-
-/**
- * Check if a module is enabled for a specific guild.
- * Defaults to ENABLED if no record exists.
- */
-function isModuleEnabled(guildId, moduleName) {
-    const row = db.prepare(`
-        SELECT enabled
-        FROM guild_modules
-        WHERE guild_id = ? AND module = ?
-    `).get(guildId, moduleName);
-
-    return row?.enabled !== 0;
-}
 
 module.exports = {
     name: "interactionCreate",
 
     async execute(interaction) {
         try {
-            // ============================================================
-            // 0) AUTOCOMPLETE — MUST RUN FIRST
-            // ============================================================
+            // AUTOCOMPLETE
             if (interaction.isAutocomplete()) {
                 if (interaction.commandName !== "features") return;
 
                 const focused = interaction.options.getFocused(true);
-
-                // Only autocomplete the "name" option
                 if (focused.name !== "name") return;
 
                 const features = new Set();
@@ -61,160 +36,104 @@ module.exports = {
                     }
                 }
 
-                const results = [...features]
-                    .filter(f =>
-                        f.includes(focused.value.toLowerCase())
-                    )
-                    .slice(0, 25) // Discord hard limit
-                    .map(f => ({ name: f, value: f }));
-
-                return interaction.respond(results);
+                return interaction.respond(
+                    [...features]
+                        .filter(f =>
+                            f.includes(focused.value.toLowerCase())
+                        )
+                        .slice(0, 25)
+                        .map(f => ({ name: f, value: f }))
+                );
             }
 
-            // ============================================================
-            // 1) DB ADMIN PANEL — SELECT MENU
-            // ============================================================
-            if (interaction.isStringSelectMenu() && interaction.customId === "dbadmin:select-table") {
-                if (!isOwnerOrAdmin(interaction)) return;
-
-                const table = interaction.values[0];
-
-                return interaction.update({
-                    embeds: [dbAdminUI.makeSchemaEmbed(table)],
-                    components: dbAdminUI.makeMainPanel()
-                });
+            // DB ADMIN
+            if (dbAdminService.canHandle(interaction)) {
+                return dbAdminService.handle(interaction);
             }
 
-            // ============================================================
-            // 2) DB ADMIN PANEL — BUTTONS
-            // ============================================================
-            if (interaction.isButton() && interaction.customId.startsWith("dbadmin:")) {
-                if (!isOwnerOrAdmin(interaction)) return;
-
-                const parts = interaction.customId.split(":");
-                const action = parts[1];
-                const table = parts[2];
-                const page = parts[3] ? parseInt(parts[3], 10) : 0;
-
-                if (action === "view-schema") {
-                    return interaction.update({
-                        embeds: [dbAdminUI.makeSchemaEmbed(table)],
-                        components: dbAdminUI.makeMainPanel()
-                    });
-                }
-
-                if (action === "view-rows") {
-                    const { embed, components } = dbAdminUI.makeRowsPage(table, 0);
-                    return interaction.update({ embeds: [embed], components });
-                }
-
-                if (action === "rows-next") {
-                    const { embed, components } = dbAdminUI.makeRowsPage(table, page + 1);
-                    return interaction.update({ embeds: [embed], components });
-                }
-
-                if (action === "rows-prev") {
-                    const { embed, components } = dbAdminUI.makeRowsPage(table, Math.max(0, page - 1));
-                    return interaction.update({ embeds: [embed], components });
-                }
-
-                if (action === "validate") {
-                    const issues = dbAdmin.validateSchema();
-
-                    return interaction.update({
-                        embeds: [
-                            createInfoEmbed("Schema Validation", issues.join("\n"))
-                        ],
-                        components: dbAdminUI.makeMainPanel()
-                    });
-                }
-
-                if (action === "repair") {
-                    const result = dbAdmin.autoRepairSchema();
-                    const summary =
-                        "**Issues:**\n" +
-                        result.issues.join("\n") +
-                        "\n\n**Fixes Applied:**\n" +
-                        (result.fixes.length ? result.fixes.join("\n") : "No fixes needed");
-
-                    return interaction.update({
-                        embeds: [createSuccessEmbed("Schema Repair Complete", summary)],
-                        components: dbAdminUI.makeMainPanel()
-                    });
-                }
-            }
-
-            // ============================================================
-            // 3) REGISTRATION APPROVAL BUTTONS
-            // ============================================================
+            // REGISTRATION APPROVAL
             if (
                 interaction.isButton() &&
-                (interaction.customId.startsWith("approve_") || interaction.customId.startsWith("deny_"))
+                (interaction.customId.startsWith("approve_") ||
+                 interaction.customId.startsWith("deny_"))
             ) {
                 return approvalHandler.handle(interaction);
             }
 
-            // ============================================================
-            // 4) SLASH COMMANDS (WITH PER-GUILD MODULE GUARD)
-            // ============================================================
+            // SLASH COMMANDS
             if (interaction.isChatInputCommand()) {
-                const command = interaction.client.commands.get(interaction.commandName);
+                const command =
+                    interaction.client.commands.get(interaction.commandName);
 
                 if (!command) {
-                    logger.warn(`Unknown slash command: ${interaction.commandName}`);
+                    logger.warn("Unknown slash command invoked.", {
+                        command: interaction.commandName,
+                        userId: interaction.user.id,
+                    });
+
                     return interaction.reply({
-                        embeds: [createErrorEmbed("Error", "Unknown command.")],
-                        flags: 64
+                        embeds: [
+                            createErrorEmbed(
+                                "Unknown Command",
+                                "This command is not recognised."
+                            ),
+                        ],
+                        flags: 64,
                     });
                 }
 
-                // 🔐 MODULE PER-GUILD ENABLE CHECK
+                // MODULE GUARD (SERVICE-ENFORCED)
                 if (command.module) {
                     const guildId = interaction.guild?.id;
 
-                    if (guildId && !isModuleEnabled(guildId, command.module)) {
+                    if (
+                        guildId &&
+                        !moduleRegistry.requireEnabled(
+                            guildId,
+                            command.module,
+                            "SLASH_COMMAND"
+                        )
+                    ) {
                         return interaction.reply({
                             embeds: [
                                 createInfoEmbed(
                                     "Module Disabled",
                                     `The **${command.module}** module is disabled in this server.`
-                                )
+                                ),
                             ],
-                            flags: 64
+                            flags: 64,
                         });
                     }
                 }
 
-                await command.execute(interaction);
+                return command.execute(interaction);
             }
 
         } catch (err) {
-            logger.error(`Unhandled interaction error: ${err.stack || err}`);
+            logger.error("Unhandled interaction error.", {
+                error: err?.stack || String(err),
+                interaction: interaction?.id,
+            });
 
             try {
+                const errorEmbed = createErrorEmbed(
+                    "Unexpected Error",
+                    "Something went wrong while processing this interaction."
+                );
+
                 if (interaction.deferred || interaction.replied) {
-                    await interaction.editReply({
-                        embeds: [
-                            createErrorEmbed(
-                                "Unexpected Error",
-                                "Something went wrong processing this interaction."
-                            )
-                        ]
-                    });
+                    await interaction.editReply({ embeds: [errorEmbed] });
                 } else {
                     await interaction.reply({
-                        embeds: [
-                            createErrorEmbed(
-                                "Unexpected Error",
-                                "Something went wrong processing this interaction."
-                            )
-                        ],
-                        flags: 64
+                        embeds: [errorEmbed],
+                        flags: 64,
                     });
                 }
             } catch {
-                logger.error("Failed to send error reply for interaction.");
+                logger.critical(
+                    "Failed to send error response for interaction."
+                );
             }
         }
-    }
+    },
 };

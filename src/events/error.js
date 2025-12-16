@@ -1,10 +1,16 @@
+// ============================================================
+// ASTRAL RELAY — DISCORD CLIENT ERROR EVENT
+// Handles fatal client-level errors.
+// ============================================================
+
 const logger = require("../core/logger");
 
 module.exports = {
-  name: "error",
+    name: "error",
 
-  execute(error) {
-    logger.error("Discord client error:");
-    console.error(error);
-  },
+    execute(error) {
+        logger.error("Discord client error occurred.", {
+            error: error?.stack || String(error),
+        });
+    },
 };

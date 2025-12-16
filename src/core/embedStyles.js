@@ -1,81 +1,98 @@
-// src/core/embedStyles.js
+// ============================================================
+// ASTRAL RELAY — EMBED STYLES
+// Defines the canonical visual language for all Discord embeds.
+// No other file should construct EmbedBuilder directly.
+// ============================================================
+
 const { EmbedBuilder } = require("discord.js");
 
-// Standard colours
-const LOG_COLORS = {
-    INFO: 0x3498db,
-    SUCCESS: 0x2ecc71,
-    WARN: 0xf1c40f,
-    ERROR: 0xe74c3c,
+// ------------------------------------------------------------
+// SEVERITY → COLOUR MAPPING (CANONICAL)
+// ------------------------------------------------------------
+const SEVERITY_COLORS = {
+    INFO: 0x3498db,       // Blue — informational telemetry
+    SUCCESS: 0x2ecc71,    // Green — confirmed actions
+    WARN: 0xf1c40f,       // Yellow — non-fatal issues
+    SECURITY: 0xe67e22,   // Orange — guarded / sensitive actions
+    ERROR: 0xe74c3c,      // Red — failures
+    CRITICAL: 0x2c2f33,   // Dark — system integrity events
 };
 
-// Bot logo used everywhere
+// ------------------------------------------------------------
+// BRANDING
+// ------------------------------------------------------------
+const BOT_NAME = "Astral Relay";
 const BOT_LOGO =
     "https://cdn.discordapp.com/icons/1444904297358688320/a_d05db8a486d3c803566d67525914c901.gif?size=256";
 
-/* ============================================================
-   SYSTEM LOG EMBEDS (Logged to Discord logChannel)
-   ============================================================ */
+// ------------------------------------------------------------
+// BASE EMBED CONSTRUCTOR
+// ------------------------------------------------------------
 
-function createLogEmbed(client, type, title, description) {
-    const botAvatar = client?.user?.displayAvatarURL() || BOT_LOGO;
+/**
+ * Creates a canonical Astral Relay embed.
+ * All embeds — logs, replies, admin messages — flow through here.
+ *
+ * @param {Object} options
+ * @param {string} options.severity   One of the defined severity levels
+ * @param {string} options.title      Short, declarative title
+ * @param {string} options.description Human-readable explanation
+ * @param {string} [options.source]   Optional subsystem identifier
+ * @param {string} [options.environment] DEV / PROD tag
+ */
+function createBaseEmbed({
+    severity = "INFO",
+    title,
+    description,
+    source,
+    environment,
+}) {
+    const color = SEVERITY_COLORS[severity] || SEVERITY_COLORS.INFO;
 
-    return new EmbedBuilder()
-        .setColor(LOG_COLORS[type] || LOG_COLORS.INFO)
-        .setTitle(title)
-        .setDescription(description)
-        .setThumbnail(botAvatar)               // Bot logo thumbnail
-        .setTimestamp()
-        .setFooter({
-            text: "Astral Relay — System Log", // System log footer
-            iconURL: botAvatar,
-        });
-}
+    const footerParts = [];
+    if (source) footerParts.push(source);
+    if (environment) footerParts.push(environment.toUpperCase());
 
-/* ============================================================
-   USER-FACING EMBEDS (Slash command responses)
-   ============================================================ */
-
-function baseReplyEmbed(color) {
     return new EmbedBuilder()
         .setColor(color)
+        .setTitle(title)
+        .setDescription(description)
+        .setAuthor({
+            name: BOT_NAME,
+            iconURL: BOT_LOGO,
+        })
+        .setThumbnail(BOT_LOGO)
         .setTimestamp()
-        .setThumbnail(BOT_LOGO)               // Consistent bot logo
         .setFooter({
-            text: "Astral Relay - System Log",             // General bot footer
+            text: footerParts.length
+                ? `${BOT_NAME} — ${footerParts.join(" | ")}`
+                : `${BOT_NAME} — Command & Control`,
             iconURL: BOT_LOGO,
         });
 }
 
-function createSuccessEmbed(title, description) {
-    return baseReplyEmbed(LOG_COLORS.SUCCESS)
-        .setTitle(title)
-        .setDescription(description);
-}
-
-function createInfoEmbed(title, description) {
-    return baseReplyEmbed(LOG_COLORS.INFO)
-        .setTitle(title)
-        .setDescription(description);
-}
-
-function createWarningEmbed(title, description) {
-    return baseReplyEmbed(LOG_COLORS.WARN)
-        .setTitle(title)
-        .setDescription(description);
-}
-
-function createErrorEmbed(title, description) {
-    return baseReplyEmbed(LOG_COLORS.ERROR)
-        .setTitle(title)
-        .setDescription(description);
-}
+// ------------------------------------------------------------
+// EXPORTED FACTORIES (INTENT-DRIVEN)
+// ------------------------------------------------------------
 
 module.exports = {
-    LOG_COLORS,
-    createLogEmbed,
-    createSuccessEmbed,
-    createInfoEmbed,
-    createWarningEmbed,
-    createErrorEmbed,
+    SEVERITY_COLORS,
+
+    createInfoEmbed: (opts) =>
+        createBaseEmbed({ ...opts, severity: "INFO" }),
+
+    createSuccessEmbed: (opts) =>
+        createBaseEmbed({ ...opts, severity: "SUCCESS" }),
+
+    createWarningEmbed: (opts) =>
+        createBaseEmbed({ ...opts, severity: "WARN" }),
+
+    createSecurityEmbed: (opts) =>
+        createBaseEmbed({ ...opts, severity: "SECURITY" }),
+
+    createErrorEmbed: (opts) =>
+        createBaseEmbed({ ...opts, severity: "ERROR" }),
+
+    createCriticalEmbed: (opts) =>
+        createBaseEmbed({ ...opts, severity: "CRITICAL" }),
 };

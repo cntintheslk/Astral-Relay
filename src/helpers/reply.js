@@ -5,7 +5,7 @@ const {
     createInfoEmbed,
     createWarningEmbed,
     createErrorEmbed
-} = require("./embedStyles");
+} = require("../core/embedStyles");
 
 /**
  * Safely send a response to an interaction.

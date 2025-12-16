@@ -4,6 +4,7 @@ const logger = require("../../core/logger");
 const { log } = require("../../core/discordLogger");
 
 module.exports = {
+    module: "registration",
     async init() {
         logger.info("[registration] Initializing registration module…");
         log("INFO", "Registration Module", "Registration system module initialized.");

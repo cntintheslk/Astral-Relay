@@ -1,58 +1,100 @@
-// src/core/configValidator.js
+// ============================================================
+// ASTRAL RELAY — CONFIGURATION VALIDATOR
+// Performs runtime validation of environment configuration.
+// This module must remain transport-agnostic.
+// ============================================================
 
 const logger = require("./logger");
-const { log } = require("./discordLogger");
 
+// ------------------------------------------------------------
+// INTERNAL HELPERS
+// ------------------------------------------------------------
+
+/**
+ * Validates a Discord snowflake ID.
+ */
 function isSnowflake(id) {
     return typeof id === "string" && /^\d{17,20}$/.test(id);
 }
 
+// ------------------------------------------------------------
+// VALIDATION ENTRY POINT
+// ------------------------------------------------------------
+
+/**
+ * Validates required and optional runtime configuration.
+ * Fatal issues will terminate the process immediately.
+ */
 function validateConfig(config) {
-    let fatal = false;
-    const issues = [];
+    let hasFatalError = false;
+    const warnings = [];
 
-    // BOT TOKEN
+    // --------------------------------------------------------
+    // CORE AUTHENTICATION
+    // --------------------------------------------------------
+
     if (!config.token) {
-        fatal = true;
-        issues.push("BOT_TOKEN is missing.");
+        hasFatalError = true;
+        warnings.push("BOT_TOKEN is missing.");
     }
 
-    // LOG CHANNEL
+    // --------------------------------------------------------
+    // LOGGING / TELEMETRY
+    // --------------------------------------------------------
+
     if (!config.logChannelId) {
-        fatal = true;
-        issues.push("LOG_CHANNEL_ID is missing.");
+        hasFatalError = true;
+        warnings.push("LOG_CHANNEL_ID is missing.");
     } else if (!isSnowflake(config.logChannelId)) {
-        fatal = true;
-        issues.push(`LOG_CHANNEL_ID is invalid: ${config.logChannelId}`);
+        hasFatalError = true;
+        warnings.push(`LOG_CHANNEL_ID is invalid: ${config.logChannelId}`);
     }
 
-    // DEV GUILD
+    // --------------------------------------------------------
+    // DEVELOPMENT ENVIRONMENT
+    // --------------------------------------------------------
+
     if (!config.devGuildId) {
-        issues.push("DEV_GUILD_ID is not set (commands will not deploy to dev guild).");
+        warnings.push(
+            "DEV_GUILD_ID is not set — development command deployment will be disabled."
+        );
     } else if (!isSnowflake(config.devGuildId)) {
-        issues.push(`DEV_GUILD_ID is invalid: ${config.devGuildId}`);
+        warnings.push(`DEV_GUILD_ID is invalid: ${config.devGuildId}`);
     }
 
-    // OWNER IDS
+    // --------------------------------------------------------
+    // ACCESS CONTROL
+    // --------------------------------------------------------
+
     if (!config.ownerIds.length) {
-        issues.push("OWNER_IDS is empty — no one can use protected commands.");
+        warnings.push(
+            "OWNER_IDS is empty — protected commands will be inaccessible."
+        );
     } else {
         for (const id of config.ownerIds) {
             if (!isSnowflake(id)) {
-                issues.push(`OWNER_ID is invalid: ${id}`);
+                warnings.push(`OWNER_ID is invalid: ${id}`);
             }
         }
     }
 
-    // Log issues
-    if (issues.length > 0) {
-        const msg = ["Configuration issues detected:", ...issues.map(x => `• ${x}`)].join("\n");
-        logger.warn(msg);
-        log("WARN", "Configuration Issues", msg);
+    // --------------------------------------------------------
+    // REPORTING
+    // --------------------------------------------------------
+
+    if (warnings.length > 0) {
+        const message = [
+            "Configuration issues detected:",
+            ...warnings.map(w => `• ${w}`),
+        ].join("\n");
+
+        logger.warn(message);
     }
 
-    if (fatal) {
-        logger.error("Fatal configuration error — shutting down.");
+    if (hasFatalError) {
+        logger.critical(
+            "Fatal configuration error detected — system initialisation aborted."
+        );
         process.exit(1);
     }
 }

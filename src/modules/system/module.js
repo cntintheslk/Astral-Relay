@@ -3,6 +3,7 @@ const logger = require("../../core/logger");
 const config = require("../../core/config");
 
 module.exports = {
+    module: "system",
     async init(client) {
         logger.info("[system] Initializing system module…");
 
