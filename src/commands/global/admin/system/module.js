@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require("discord.js");
-const reply = require("../../../../core/reply");
+const reply = require("../../../../helpers/reply");
 
 const {
     listModules,
