@@ -20,7 +20,7 @@ module.exports = {
                 .setDescription("Force refresh all slash commands")
         ),
 
-    scope: "global",
+    scope: "in_development",
 
     async execute(interaction) {
         // -----------------------------------------------------
