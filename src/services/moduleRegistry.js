@@ -43,6 +43,25 @@ function requireEnabled(guildId, moduleName, context = "UNKNOWN") {
 
     return enabled;
 }
+// ------------------------------------------------------------
+// MODULE INTROSPECTION (HEALTH / DEBUG)
+// ------------------------------------------------------------
+
+/**
+ * Returns the number of modules registered for a guild.
+ * Used by /system health.
+ */
+function getModuleCount(guildId) {
+    if (!guildId) return 0;
+
+    const row = db.prepare(`
+        SELECT COUNT(*) AS count
+        FROM guild_modules
+        WHERE guild_id = ?
+    `).get(guildId);
+
+    return row?.count ?? 0;
+}
 
 // ------------------------------------------------------------
 // MODULE LIFECYCLE (PLACEHOLDER / FUTURE)
@@ -57,4 +76,5 @@ function requireEnabled(guildId, moduleName, context = "UNKNOWN") {
 module.exports = {
     isEnabled,
     requireEnabled,
+    getModuleCount,
 };
