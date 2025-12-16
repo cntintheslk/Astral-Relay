@@ -44,6 +44,34 @@ module.exports = {
     async execute(interaction) {
         try {
             // ============================================================
+            // 0) AUTOCOMPLETE — MUST RUN FIRST
+            // ============================================================
+            if (interaction.isAutocomplete()) {
+                if (interaction.commandName !== "features") return;
+
+                const focused = interaction.options.getFocused(true);
+
+                // Only autocomplete the "name" option
+                if (focused.name !== "name") return;
+
+                const features = new Set();
+                for (const command of interaction.client.commands.values()) {
+                    if (command.module) {
+                        features.add(command.module.toLowerCase());
+                    }
+                }
+
+                const results = [...features]
+                    .filter(f =>
+                        f.includes(focused.value.toLowerCase())
+                    )
+                    .slice(0, 25) // Discord hard limit
+                    .map(f => ({ name: f, value: f }));
+
+                return interaction.respond(results);
+            }
+
+            // ============================================================
             // 1) DB ADMIN PANEL — SELECT MENU
             // ============================================================
             if (interaction.isStringSelectMenu() && interaction.customId === "dbadmin:select-table") {
