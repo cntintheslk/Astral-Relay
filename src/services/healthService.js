@@ -8,6 +8,8 @@ const { performance } = require("perf_hooks");
 const db = require("./database");
 const moduleRegistry = require("./moduleRegistry");
 const config = require("../core/config");
+const guild = client.guilds.cache.first();
+const guildId = guild?.id;
 
 // ------------------------------------------------------------
 // INTERNAL MEASUREMENTS
@@ -73,7 +75,10 @@ async function collectHealth(client) {
         nodeVersion: process.version,
 
         guildCount: client.guilds.cache.size,
-        moduleCount: moduleRegistry.listModules().length,
+        moduleCount: guildId
+            ? moduleRegistry.getModuleCount(guildId)
+            : 0,
+
         commandCount: client.commands.size,
         gatewayPing: client.ws.ping,
 
