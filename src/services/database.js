@@ -3,14 +3,13 @@
 // ============================================================
 
 const Database = require("better-sqlite3");
-const logger = require("./logger");
+const logger = require("../core/logger");
 
 // ============================================================
 // CONFIGURATION
 // ============================================================
 
 // Render persistent disk location
-// NOTE: This path must exist on the Render instance
 const DB_PATH = "/data/astral_relay.sqlite";
 
 // ============================================================
