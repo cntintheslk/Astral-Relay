@@ -1,5 +1,5 @@
 const { log } = require("../../core/discordLogger");
-const db = require("../../core/database");
+const db = require("../../services/database");
 
 module.exports = {
     idStartsWith: "registerRankSelect:",

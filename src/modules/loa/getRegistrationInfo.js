@@ -3,7 +3,7 @@
 // Retrieves approved registration metadata for a guild member.
 // ============================================================
 
-const db = require("../../core/database");
+const db = require("../../services/database");
 const logger = require("../../core/logger");
 
 module.exports = function getRegistrationInfo(guildId, userId) {

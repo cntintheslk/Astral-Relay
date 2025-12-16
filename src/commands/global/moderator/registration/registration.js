@@ -22,7 +22,7 @@ const {
     setApproverRoles
 } = require("../../../modules/registration/settingsStore");
 
-const db = require("../../../core/database");
+const db = require("../../../services/database");
 
 // ----------------------------
 // PERMISSION CHECK

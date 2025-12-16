@@ -1,4 +1,4 @@
-const db = require("../../core/database");
+const db = require("../../services/database");
 const { EmbedBuilder } = require("discord.js");
 
 module.exports = async function handleWelcome(member, { isTest = false } = {}) {

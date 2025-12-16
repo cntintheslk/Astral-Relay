@@ -1,6 +1,6 @@
 // modules/dbadmin/module.js
 const logger = require("../../core/logger");
-const db = require("../../core/database");
+const db = require("../../services/database");
 
 module.exports = {
     name: "dbadmin",

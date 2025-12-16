@@ -9,7 +9,7 @@ const {
     MessageFlags
 } = require("discord.js");
 
-const db = require("../../../core/database");
+const db = require("../../../services/database");
 const renderBoard = require("../../../../modules/loa/renderBoard");
 const getRegistrationInfo = require("../../../../modules/loa/getRegistrationInfo");
 const { randomUUID } = require("crypto");

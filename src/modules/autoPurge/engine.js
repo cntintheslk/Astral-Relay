@@ -1,6 +1,6 @@
 // src/src/modules/autoPurge/engine.js
 
-const db = require("../../core/database");
+const db = require("../../services/database");
 const logger = require("../../core/logger");
 
 /**

@@ -2,7 +2,7 @@
 
 const { collectHealth } = require("../../core/health");
 const { createInfoEmbed } = require("../../core/embedStyles");
-const db = require("../../core/database");
+const db = require("../../services/database");
 const config = require("../../core/config");
 const logger = require("../../core/logger");
 

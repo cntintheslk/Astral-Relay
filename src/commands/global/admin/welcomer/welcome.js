@@ -4,7 +4,7 @@ const {
     EmbedBuilder
 } = require("discord.js");
 
-const db = require("../../../core/database");
+const db = require("../../../services/database");
 const handleWelcome = require("../../../modules/welcome/welcomeHandler");
 
 

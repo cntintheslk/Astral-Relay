@@ -3,7 +3,7 @@
 // Tracks role assignments for audit and historical purposes.
 // ============================================================
 
-const db = require("../core/database");
+const db = require("../services/database");
 const logger = require("../core/logger");
 
 module.exports = {

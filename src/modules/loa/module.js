@@ -1,4 +1,4 @@
-const db = require("../../core/database");
+const db = require("../../services/database");
 const renderBoard = require("./renderBoard");
 const { randomUUID } = require("crypto");
 

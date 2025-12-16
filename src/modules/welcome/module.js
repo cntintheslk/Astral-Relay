@@ -1,7 +1,7 @@
 // src/modules/welcomer/module.js
 
 const logger = require("../../core/logger");
-const db = require("../../core/database");
+const db = require("../../services/database");
 
 module.exports = {
     module: "welcomer",

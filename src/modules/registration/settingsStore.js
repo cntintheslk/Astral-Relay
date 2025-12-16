@@ -1,4 +1,4 @@
-const db = require("../../core/database");
+const db = require("../../services/database");
 
 /**
  * Normalize boolean-like inputs into clean integer flags (0/1)

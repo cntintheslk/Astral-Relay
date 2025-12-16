@@ -1,6 +1,6 @@
 // src/modules/dbadmin/dbAdmin.js
 
-const db = require("../../core/database");
+const db = require("../../services/database");
 const logger = require("../../core/logger");
 const { log } = require("../../core/discordLogger");
 

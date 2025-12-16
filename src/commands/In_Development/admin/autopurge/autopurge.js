@@ -7,7 +7,7 @@ const {
 } = require("discord.js");
 
 const crypto = require("crypto");
-const db = require("../../../core/database");
+const db = require("../../../services/database");
 const { dryRunSummary, runAutoPurge } = require("../../../../modules/autoPurge/engine");
 
 
