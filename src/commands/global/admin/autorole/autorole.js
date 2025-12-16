@@ -17,6 +17,7 @@ const {
 } = require("../../../../core/embedStyles");
 
 module.exports = {
+    scope: "global",
     data: new SlashCommandBuilder()
         .setName("autorole")
         .setDescription("Manage unlimited autoroles")

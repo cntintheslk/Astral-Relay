@@ -59,8 +59,7 @@ function getLiveState(guildId) {
 }
 
 module.exports = {
-    category: "dev",
-
+    scope: "in_development",
     data: new SlashCommandBuilder()
         .setName("autopurge")
         .setDescription("Manage the automatic role-based purge system")

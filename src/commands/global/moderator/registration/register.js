@@ -7,6 +7,7 @@ const logger = require("../../../core/logger");
 const { sendRegLog } = require("../../../core/registrationLogHelper");
 
 module.exports = {
+    scope: "global",
     data: new SlashCommandBuilder()
         .setName("register")
         .setDescription("Register your in-game rank on this server.")

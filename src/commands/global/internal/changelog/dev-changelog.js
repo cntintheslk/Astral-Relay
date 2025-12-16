@@ -4,6 +4,7 @@ const config = require("../../../core/config");
 const BOT_LOGO =
     "https://cdn.discordapp.com/icons/1444904297358688320/a_d05db8a486d3c803566d67525914c901.gif?size=256";
 module.exports = {
+    scope: "global",
     data: new SlashCommandBuilder()
         .setName("dev-changelog")
         .setDescription("Developer-only: publish an official changelog")
