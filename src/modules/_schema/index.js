@@ -1,36 +1,41 @@
+// ============================================================
+// ASTRAL RELAY — DATABASE SCHEMA LOADER
+// Loads and applies SQL schema files at startup.
+// ============================================================
+
 const fs = require("fs");
 const path = require("path");
-const db = require("../../services/database");
+const db = require("../../core/database");
 const logger = require("../../core/logger");
 
+// ------------------------------------------------------------
+// SCHEMA LOADER
+// ------------------------------------------------------------
+
 function loadSchemas() {
-    const schemaDir = path.join(__dirname);
-    const files = fs.readdirSync(schemaDir).filter(f => f.endsWith(".sql"));
+    const schemaDir = __dirname;
+
+    const files = fs
+        .readdirSync(schemaDir)
+        .filter(file => file.endsWith(".sql"));
 
     logger.info(`Loading ${files.length} SQL schema files...`);
-    log("INFO", "DB Schema Loader", `Loading **${files.length}** schema files.`);
 
     for (const file of files) {
         const filePath = path.join(schemaDir, file);
         const sql = fs.readFileSync(filePath, "utf8");
 
-        db.exec(sql, (err) => {
-            if (err) {
-                logger.error(`Failed to apply schema: ${file}`);
-                console.error(err);
-
-                log(
-                    "ERROR",
-                    "Schema Load Error",
-                    `Schema: \`${file}\`\n\`\`\`${err.message}\`\`\``
-                );
-                return;
-            }
-
+        try {
+            db.exec(sql);
             logger.success(`Applied schema: ${file}`);
-            log("SUCCESS", "Schema Applied", `\`${file}\` successfully applied.`);
-        });
+        } catch (err) {
+            logger.error("Failed to apply schema.", {
+                file,
+                error: err?.stack || err.message,
+            });
+            throw err; // schema failure should halt startup
+        }
     }
 }
 
-module.exports = { loadSchemas };
+module.exports = loadSchemas;
