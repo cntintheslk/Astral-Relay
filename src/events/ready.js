@@ -4,7 +4,7 @@
 
 const logger = require("../core/logger");
 const config = require("../core/config");
-const deployCommands = require("../handlers/commandDeployer");
+const { deployCommands } = require("../handlers/commandDeployer");
 const { setLogChannel, handleLog } = require("../core/discordLogger");
 
 module.exports = {
@@ -47,6 +47,7 @@ module.exports = {
             logger.critical("Command deployment failed.", {
                 error: err?.stack || err?.message || String(err),
             });
+            return;
         }
 
         logger.info("Runtime environment ready.", {
