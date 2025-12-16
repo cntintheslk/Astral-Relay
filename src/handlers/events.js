@@ -1,22 +1,40 @@
+// ============================================================
+// Astral Relay — Event Loader
+// Dynamically loads and binds Discord event handlers.
+// ============================================================
+
 const fs = require("fs");
 const path = require("path");
 const logger = require("../core/logger");
-const { logError } = require("../core/discordLogger");
+
+// ============================================================
+// LOAD EVENTS
+// ============================================================
 
 function loadEvents(client) {
     const eventsPath = path.join(__dirname, "../events");
     const files = fs.readdirSync(eventsPath).filter(f => f.endsWith(".js"));
 
     for (const file of files) {
-        const event = require(path.join(eventsPath, file));
-        logger.info(`Event loaded: ${event.name}`);
+        const eventPath = path.join(eventsPath, file);
+        const event = require(eventPath);
+
+        if (!event?.name || typeof event.execute !== "function") {
+            logger.warn("Invalid event file skipped.", { file });
+            continue;
+        }
+
+        logger.info("Event loaded.", { event: event.name });
 
         if (event.once) {
             client.once(event.name, async (...args) => {
                 try {
                     await event.execute(...args, client);
                 } catch (err) {
-                    logError(`event:${event.name}`, err);
+                    logger.error("Unhandled error in event handler.", {
+                        event: event.name,
+                        error: err?.stack || err?.message || String(err),
+                    });
                 }
             });
         } else {
@@ -24,11 +42,18 @@ function loadEvents(client) {
                 try {
                     await event.execute(...args, client);
                 } catch (err) {
-                    logError(`event:${event.name}`, err);
+                    logger.error("Unhandled error in event handler.", {
+                        event: event.name,
+                        error: err?.stack || err?.message || String(err),
+                    });
                 }
             });
         }
     }
 }
+
+// ============================================================
+// EXPORT
+// ============================================================
 
 module.exports = loadEvents;
