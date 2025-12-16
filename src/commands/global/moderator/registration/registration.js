@@ -5,15 +5,15 @@ const {
     PermissionFlagsBits,
 } = require("discord.js");
 
-const config = require("../../../core/config");
-const logger = require("../../../core/logger");
-const { log } = require("../../../core/discordLogger");
+const config = require("../../../../core/config");
+const logger = require("../../../../core/logger");
+const { log } = require("../../../../core/discordLogger");
 
 const {
     createInfoEmbed,
     createSuccessEmbed,
     createErrorEmbed,
-} = require("../../../core/embedStyles");
+} = require("../../../../core/embedStyles");
 
 const {
     getSettings,
