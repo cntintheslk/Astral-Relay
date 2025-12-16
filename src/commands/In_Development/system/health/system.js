@@ -68,10 +68,29 @@ module.exports = {
                 `**Database Locked:** \`${health.db.locked}\``,
             ];
 
-            const embed = createInfoEmbed(
-                "System Health Report",
-                lines.join("\n")
-            );
+            const embed = createInfoEmbed({
+                title: "System Health Report",
+                description: [
+                    `**Environment:** \`${config.environment}\``,
+                    `**Uptime:** ${Math.floor(health.uptime / 60)} min`,
+                    `**Gateway Ping:** \`${health.gatewayPing}ms\``,
+                    `**Guilds:** \`${health.guildCount}\``,
+                    `**Modules Loaded:** \`${health.moduleCount}\``,
+                    `**Commands Loaded:** \`${health.commandCount}\``,
+                    "",
+                    `**Memory Usage:**`,
+                    `• Heap: ${(health.memory.heapUsed / 1024 / 1024).toFixed(1)} MB`,
+                    `• RSS: ${(health.memory.rss / 1024 / 1024).toFixed(1)} MB`,
+                    "",
+                    `**Event Loop Delay:** \`${health.eventLoopDelay.toFixed(2)}ms\``,
+                    "",
+                    `**Database Response:** \`${health.db.responseTime ?? "ERR"}ms\``,
+                    `**Database Locked:** \`${health.db.locked}\``,
+                ].join("\n"),
+                source: "System / Health",
+                environment: config.environment,
+            });
+
 
             // Apply Astral Relay branding
             logBranding.apply(embed);

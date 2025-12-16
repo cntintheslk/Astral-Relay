@@ -7,16 +7,16 @@
 const { EmbedBuilder } = require("discord.js");
 
 // ------------------------------------------------------------
-// SEVERITY → COLOUR MAPPING (CANONICAL)
+// SEVERITY → COLOUR MAPPING
 // ------------------------------------------------------------
 
 const SEVERITY_COLORS = {
-    INFO: 0x3498db,
-    SUCCESS: 0x2ecc71,
-    WARN: 0xf1c40f,
-    SECURITY: 0xe67e22,
-    ERROR: 0xe74c3c,
-    CRITICAL: 0x2c2f33,
+    INFO: 0x3498db,       // Blue
+    SUCCESS: 0x2ecc71,    // Green
+    WARN: 0xf1c40f,       // Yellow
+    SECURITY: 0xe67e22,   // Orange
+    ERROR: 0xe74c3c,      // Red
+    CRITICAL: 0x2c2f33,   // Dark
 };
 
 // ------------------------------------------------------------
@@ -28,7 +28,7 @@ const BOT_LOGO =
     "https://cdn.discordapp.com/icons/1444904297358688320/a_d05db8a486d3c803566d67525914c901.gif?size=256";
 
 // ------------------------------------------------------------
-// INTERNAL SANITISERS (DISCORD-SAFE)
+// INTERNAL UTILITIES (DISCORD-SAFE)
 // ------------------------------------------------------------
 
 function safeString(value, fallback = "") {
@@ -47,7 +47,14 @@ function truncate(value, max) {
 
 /**
  * Creates a canonical Astral Relay embed.
- * This function is fully defensive against invalid input.
+ * Fully defensive against invalid or missing input.
+ *
+ * @param {Object} options
+ * @param {string} options.severity
+ * @param {string} options.title
+ * @param {string} options.description
+ * @param {string} [options.source]
+ * @param {string} [options.environment]
  */
 function createBaseEmbed({
     severity = "INFO",
@@ -58,25 +65,33 @@ function createBaseEmbed({
 }) {
     const color = SEVERITY_COLORS[severity] || SEVERITY_COLORS.INFO;
 
-    // -----------------------------
+    // --------------------------------------------------------
     // TITLE (REQUIRED BY DISCORD)
-    // -----------------------------
+    // --------------------------------------------------------
+    if (!title) {
+        console.warn("[embedStyles] Missing title — fallback applied");
+    }
+
     const safeTitle = truncate(
         safeString(title, BOT_NAME),
         256
     );
 
-    // -----------------------------
-    // DESCRIPTION (OPTIONAL)
-    // -----------------------------
+    // --------------------------------------------------------
+    // DESCRIPTION (OPTIONAL BUT RECOMMENDED)
+    // --------------------------------------------------------
+    if (!description) {
+        console.warn("[embedStyles] Missing description — fallback applied");
+    }
+
     const safeDescription = truncate(
         safeString(description, " "),
         4096
     );
 
-    // -----------------------------
+    // --------------------------------------------------------
     // FOOTER
-    // -----------------------------
+    // --------------------------------------------------------
     const footerParts = [];
 
     if (source) footerParts.push(source);
@@ -86,9 +101,9 @@ function createBaseEmbed({
         ? `${BOT_NAME} — ${footerParts.join(" | ")}`
         : `${BOT_NAME} — Command & Control`;
 
-    // -----------------------------
+    // --------------------------------------------------------
     // BUILD EMBED
-    // -----------------------------
+    // --------------------------------------------------------
     const embed = new EmbedBuilder()
         .setColor(color)
         .setTitle(safeTitle)
@@ -103,7 +118,7 @@ function createBaseEmbed({
             iconURL: BOT_LOGO,
         });
 
-    // Description is optional — only set if meaningful
+    // Only set description if meaningful
     if (safeDescription.trim().length > 0) {
         embed.setDescription(safeDescription);
     }
@@ -112,7 +127,7 @@ function createBaseEmbed({
 }
 
 // ------------------------------------------------------------
-// EXPORTED FACTORIES (INTENT-DRIVEN)
+// EXPORTED FACTORIES
 // ------------------------------------------------------------
 
 module.exports = {
