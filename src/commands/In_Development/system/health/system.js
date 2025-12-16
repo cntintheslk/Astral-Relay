@@ -2,7 +2,7 @@
 
 const { SlashCommandBuilder } = require("discord.js");
 const { collectHealth } = require("../../../../services/healthService");
-const deployCommands = require("../../../../handlers/commandDeployer");
+const { deployCommands } = require("../../../../handlers/commandDeployer");
 const loadCommands = require("../../../../handlers/commands");
 const config = require("../../../../core/config");
 const logger = require("../../../../core/logger");
