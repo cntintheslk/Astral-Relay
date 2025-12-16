@@ -1,8 +1,8 @@
 const { SlashCommandBuilder } = require("discord.js");
 const { REST, Routes } = require("discord.js");
-const config = require("../../../core/config");
-const logger = require("../../../core/logger");
-const { log } = require("../../../core/discordLogger");
+const config = require("../../../../core/config");
+const logger = require("../../../../core/logger");
+const { log } = require("../../../../core/discordLogger");
 
 module.exports = {
     scope: "global",
