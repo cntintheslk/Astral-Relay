@@ -4,7 +4,7 @@
 // ============================================================
 
 const { EmbedBuilder } = require("discord.js");
-const LOG_LEVELS = require("./logLevels");
+const LOG_LEVELS = require("./logLevel");
 
 let logChannel = null;
 

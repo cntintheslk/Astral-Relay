@@ -3,7 +3,7 @@
 // Centralised structured logging with optional sinks.
 // ============================================================
 
-const LOG_LEVELS = require("./logLevels");
+const LOG_LEVELS = require("./logLevel");
 
 const LEVEL_VALUES = Object.values(LOG_LEVELS);
 
