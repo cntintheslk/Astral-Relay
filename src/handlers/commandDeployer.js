@@ -1,25 +1,45 @@
+// ============================================================
+// ASTRAL RELAY — COMMAND DEPLOYER
+// Handles global, guild, and forced refresh deployments.
+// ============================================================
+
 const { REST, Routes } = require("discord.js");
 const config = require("../core/config");
 const logger = require("../core/logger");
 const { log } = require("../core/discordLogger");
 
+// ------------------------------------------------------------
+// INTERNAL HELPERS
+// ------------------------------------------------------------
+
+function getAllCommands(client) {
+    return Array.from(client.commands.values());
+}
+
+function toJSON(commands) {
+    return commands.map(cmd => cmd.data.toJSON());
+}
+
+// ------------------------------------------------------------
+// STANDARD DEPLOY (USED ON STARTUP)
+// ------------------------------------------------------------
+
 async function deployCommands(client) {
     const rest = new REST({ version: "10" }).setToken(config.token);
-
-    const allCommands = Array.from(client.commands.values());
+    const allCommands = getAllCommands(client);
 
     try {
         if (config.environment === "production") {
-            // ------------------------------------------------
-            // PROD: GLOBAL COMMANDS ONLY
-            // ------------------------------------------------
+            // ---------------------------------------------
+            // PROD — GLOBAL COMMANDS ONLY
+            // ---------------------------------------------
 
             const globalCommands = allCommands
                 .filter(cmd => cmd.scope === "global")
                 .map(cmd => cmd.data.toJSON());
 
             logger.info(
-                `(PROD) Deploying ${globalCommands.length} GLOBAL commands...`
+                `(PROD) Deploying ${globalCommands.length} global commands...`
             );
 
             await rest.put(
@@ -37,11 +57,11 @@ async function deployCommands(client) {
             );
 
         } else {
-            // ------------------------------------------------
-            // DEV: ALL LOADED COMMANDS → DEV GUILD
-            // ------------------------------------------------
+            // ---------------------------------------------
+            // DEV — ALL LOADED COMMANDS → DEV GUILD
+            // ---------------------------------------------
 
-            const devCommands = allCommands.map(cmd => cmd.data.toJSON());
+            const devCommands = toJSON(allCommands);
 
             logger.info(
                 `(DEV) Deploying ${devCommands.length} commands to dev guild ${config.devGuildId}...`
@@ -66,7 +86,7 @@ async function deployCommands(client) {
         }
 
     } catch (err) {
-        logger.error("Failed to deploy commands.", {
+        logger.error("Command deployment failed.", {
             error: err?.stack || err.message,
         });
 
@@ -78,4 +98,67 @@ async function deployCommands(client) {
     }
 }
 
-module.exports = deployCommands;
+// ------------------------------------------------------------
+// FORCED REFRESH (WIPE + REDEPLOY)
+// ------------------------------------------------------------
+
+async function refreshCommands(client) {
+    const rest = new REST({ version: "10" }).setToken(config.token);
+    const allCommands = getAllCommands(client);
+
+    logger.warn("Forcing slash command refresh.", {
+        environment: config.environment,
+        commandCount: allCommands.length,
+    });
+
+    if (config.environment === "production") {
+        // ---------------------------------------------
+        // PROD — GLOBAL WIPE + REDEPLOY
+        // ---------------------------------------------
+
+        const globalCommands = allCommands
+            .filter(cmd => cmd.scope === "global");
+
+        await rest.put(
+            Routes.applicationCommands(client.user.id),
+            { body: [] }
+        );
+
+        await rest.put(
+            Routes.applicationCommands(client.user.id),
+            { body: toJSON(globalCommands) }
+        );
+
+    } else {
+        // ---------------------------------------------
+        // DEV — GUILD WIPE + REDEPLOY
+        // ---------------------------------------------
+
+        await rest.put(
+            Routes.applicationGuildCommands(
+                client.user.id,
+                config.devGuildId
+            ),
+            { body: [] }
+        );
+
+        await rest.put(
+            Routes.applicationGuildCommands(
+                client.user.id,
+                config.devGuildId
+            ),
+            { body: toJSON(allCommands) }
+        );
+    }
+
+    logger.success("Slash command refresh completed.");
+}
+
+// ------------------------------------------------------------
+// EXPORTS
+// ------------------------------------------------------------
+
+module.exports = {
+    deployCommands,
+    refreshCommands,
+};
