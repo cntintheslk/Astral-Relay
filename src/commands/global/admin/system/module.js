@@ -6,7 +6,7 @@ const {
     loadModule,
     unloadModule,
     reloadModule,
-} = require("../../../core/moduleRegistry");
+} = require("../../../services/moduleRegistry");
 
 const config = require("../../../../core/config");
 const logger = require("../../../../core/logger");
