@@ -1,4 +1,4 @@
-const db = require("../../core/database");
+const db = require("../../services/database");
 
 function getAutoRoles(guildId) {
     const rows = db.prepare(`
