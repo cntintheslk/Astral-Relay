@@ -7,7 +7,7 @@ module.exports = {
     NAME: "Astral Relay",
 
     // Discord attachment URL (uploaded once to a channel)
-    LOGO_URL: "https://media.discordapp.net/attachments/1448193668728225813/1448193725611380837/Astral_Relay_-_Logo.png?format=webp&quality=lossless",
+    LOGO_URL: "https://cdn.discordapp.com/attachments/1448193668728225813/1448193725611380837/Astral_Relay_-_Logo.png?size=256",
 
     FOOTER: "Astral Relay • System Log",
 
