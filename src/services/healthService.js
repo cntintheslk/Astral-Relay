@@ -6,6 +6,7 @@
 const { performance } = require("perf_hooks");
 const db = require("./database");
 const moduleRegistry = require("./moduleRegistry");
+const config = require("../core/config")
 
 // ------------------------------------------------------------
 // INTERNAL MEASUREMENTS
@@ -100,7 +101,7 @@ async function collectHealth(client) {
             // --- Runtime ---
             uptime: process.uptime(),
             nodeVersion: process.version,
-            environment: process.env.NODE_ENV || "production",
+            environment: config.environment,
 
             // --- Discord ---
             guildCount: client.guilds.cache.size,
