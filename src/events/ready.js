@@ -1,7 +1,6 @@
 // ============================================================
 // ASTRAL RELAY — READY EVENT
 // Final integration point once the Discord client is online.
-// Responsible for wiring core systems and starting subsystems.
 // ============================================================
 
 const logger = require("../core/logger");
@@ -18,21 +17,19 @@ const deployCommands = require("../handlers/commandDeployer");
 function scheduleDailyRestart() {
     const now = new Date();
     const next = new Date(now);
+
     next.setUTCHours(0, 0, 0, 0);
     if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
 
     const msUntilRestart = next.getTime() - now.getTime();
 
-    logger.info(
-        `Daily restart scheduled for ${next.toISOString()} (00:00 UTC).`
-    );
+    logger.info("Daily restart scheduled.", {
+        target: next.toISOString(),
+        secondsUntil: Math.round(msUntilRestart / 1000),
+    });
 
     setTimeout(() => {
-        logger.info(
-            "Executing scheduled daily restart — process exiting with code 0."
-        );
-
-        // Allow time for final telemetry to flush
+        logger.warn("Executing scheduled daily restart.");
         setTimeout(() => process.exit(0), 2000);
     }, msUntilRestart);
 }
@@ -46,55 +43,45 @@ module.exports = {
     once: true,
 
     async execute(client) {
-        // --------------------------------------------------------
-        // CLIENT ONLINE
-        // --------------------------------------------------------
+        logger.success(`Bot logged in as ${client.user.tag}`);
 
-        logger.success(`Connected to Discord as ${client.user.tag}`);
-
-        // --------------------------------------------------------
+        // ----------------------------------------------------
         // DISCORD LOGGING INITIALISATION
-        // --------------------------------------------------------
+        // ----------------------------------------------------
 
-        const logChannel = client.channels.cache.get(config.logChannelId);
+        const channel = client.channels.cache.get(config.logChannelId);
 
-        if (!logChannel) {
-            logger.warn(
-                "LOG_CHANNEL_ID is invalid or inaccessible — Discord telemetry disabled."
-            );
+        if (!channel) {
+            logger.warn("LOG_CHANNEL_ID invalid — Discord logging disabled.");
         } else {
-            // Bind Discord sink and attach it to the core logger
-            discordLogger.setLogChannel(logChannel, client);
-            logger.attachDiscordLogger(discordLogger);
+            discordLogger.setLogChannel(channel);
+            logger.attachDiscordSink(discordLogger.handleLog);
 
-            logger.success(
-                "Discord telemetry channel successfully initialised.",
-                {
-                    channelId: config.logChannelId,
-                }
-            );
+            logger.success("Discord logging initialised.", {
+                channelId: config.logChannelId,
+            });
         }
 
-        // --------------------------------------------------------
+        // ----------------------------------------------------
         // ENVIRONMENT TELEMETRY
-        // --------------------------------------------------------
+        // ----------------------------------------------------
 
-        logger.info("Runtime environment initialised.", {
+        logger.info("Runtime environment ready.", {
             environment: config.environment,
             node: process.version,
         });
 
-        // --------------------------------------------------------
-        // COMMAND & MODULE INITIALISATION
-        // --------------------------------------------------------
+        // ----------------------------------------------------
+        // COMMANDS & MODULES
+        // ----------------------------------------------------
 
         loadCommands(client);
         await deployCommands(client);
         await loadAllModules(client);
 
-        // --------------------------------------------------------
+        // ----------------------------------------------------
         // SCHEDULERS
-        // --------------------------------------------------------
+        // ----------------------------------------------------
 
         scheduleDailyRestart();
     },

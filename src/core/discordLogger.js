@@ -1,136 +1,59 @@
 // ============================================================
-// ASTRAL RELAY — DISCORD LOGGER
-// Bridges core telemetry into Discord embeds for operators.
-// This module must never be a single point of failure.
+// ASTRAL RELAY — DISCORD LOGGER SINK
+// Converts log entries into Discord embeds.
 // ============================================================
 
-const {
-    createInfoEmbed,
-    createSuccessEmbed,
-    createWarningEmbed,
-    createSecurityEmbed,
-    createErrorEmbed,
-    createCriticalEmbed,
-} = require("./embedStyles");
+const { EmbedBuilder } = require("discord.js");
+const LOG_LEVELS = require("./logLevels");
 
 let logChannel = null;
-let clientInstance = null;
 
 // ------------------------------------------------------------
-// INITIALISATION
+// LEVEL → COLOUR MAP
 // ------------------------------------------------------------
 
-/**
- * Binds the Discord logging channel once the client is ready.
- */
-function setLogChannel(channel, client) {
-    logChannel = channel;
-    clientInstance = client;
-}
-
-// ------------------------------------------------------------
-// INTERNAL HELPERS
-// ------------------------------------------------------------
-
-const EMBED_FACTORY_BY_SEVERITY = {
-    INFO: createInfoEmbed,
-    SUCCESS: createSuccessEmbed,
-    WARN: createWarningEmbed,
-    SECURITY: createSecurityEmbed,
-    ERROR: createErrorEmbed,
-    CRITICAL: createCriticalEmbed,
+const LEVEL_COLOURS = {
+    [LOG_LEVELS.DEBUG]: 0x95a5a6,     // Grey
+    [LOG_LEVELS.INFO]: 0x5865f2,      // Blurple
+    [LOG_LEVELS.SUCCESS]: 0x2ecc71,   // Green
+    [LOG_LEVELS.WARN]: 0xf1c40f,      // Yellow
+    [LOG_LEVELS.SECURITY]: 0xe67e22,  // Orange
+    [LOG_LEVELS.ERROR]: 0xe74c3c,     // Red
+    [LOG_LEVELS.CRITICAL]: 0x8b0000,  // Dark Red
 };
 
-/**
- * Formats structured metadata into a readable embed section.
- */
-function appendMetadata(description, metadata) {
-    if (!metadata || typeof metadata !== "object") return description;
-    const entries = Object.entries(metadata);
-    if (!entries.length) return description;
+// ------------------------------------------------------------
+// ATTACHMENT
+// ------------------------------------------------------------
 
-    let output = `${description}\n\n**Details:**\n`;
-    for (const [key, value] of entries) {
-        output += `• **${key}:** ${value}\n`;
-    }
-    return output;
+function setLogChannel(channel) {
+    logChannel = channel;
 }
 
 // ------------------------------------------------------------
-// PUBLIC LOG SINK
+// SINK HANDLER
 // ------------------------------------------------------------
 
-/**
- * Emits a log event to Discord.
- * This should only be called by the core logging pipeline.
- */
-function emit(severity, title, message, metadata = {}, source, environment) {
-    if (!logChannel || !clientInstance) return;
+function handleLog(entry) {
+    if (!logChannel) return;
 
-    const factory = EMBED_FACTORY_BY_SEVERITY[severity];
-    if (!factory) {
-        console.error(
-            `[Astral Relay] Invalid log severity "${severity}" — Discord log dropped.`
-        );
-        return;
+    const embed = new EmbedBuilder()
+        .setTitle(entry.level)
+        .setDescription(entry.message)
+        .setColor(LEVEL_COLOURS[entry.level] || 0x5865f2)
+        .setTimestamp(new Date(entry.timestamp));
+
+    if (entry.meta) {
+        embed.addFields({
+            name: "Context",
+            value: `\`\`\`json\n${JSON.stringify(entry.meta, null, 2)}\n\`\`\``,
+        });
     }
 
-    const description = appendMetadata(message, metadata);
-
-    const embed = factory({
-        title,
-        description,
-        source,
-        environment,
-    });
-
-    logChannel.send({ embeds: [embed] }).catch(err => {
-        console.error(
-            "[Astral Relay] Failed to send Discord log embed:",
-            err?.message || err
-        );
-    });
-}
-
-// ------------------------------------------------------------
-// CONVENIENCE WRAPPERS (INTERNAL USE)
-// ------------------------------------------------------------
-
-function emitModule(moduleName, severity, title, message, metadata = {}, environment) {
-    return emit(
-        severity,
-        title,
-        message,
-        metadata,
-        `MODULE:${moduleName}`,
-        environment
-    );
-}
-
-function emitError(context, error, environment) {
-    const errMsg =
-        error?.stack ||
-        error?.message ||
-        String(error);
-
-    emit(
-        "ERROR",
-        `Unhandled Error — ${context}`,
-        "An unexpected error occurred during operation.",
-        {
-            context,
-            error: errMsg.substring(0, 1900),
-        },
-        "CORE",
-        environment
-    );
+    logChannel.send({ embeds: [embed] }).catch(() => {});
 }
 
 module.exports = {
     setLogChannel,
-
-    // Internal sinks — should not be used directly by feature code
-    emit,
-    emitModule,
-    emitError,
+    handleLog,
 };

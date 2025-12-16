@@ -1,122 +1,77 @@
 // ============================================================
-// ASTRAL RELAY — CORE LOGGING SYSTEM
-// Central telemetry authority. Emits structured log events
-// to console and subscribed sinks (e.g. Discord).
+// ASTRAL RELAY — CORE LOGGER
+// Centralised structured logging with optional sinks.
 // ============================================================
 
-const chalk = require("chalk").default;
-const config = require("./config");
+const LOG_LEVELS = require("./logLevels");
 
-// Discord logger is OPTIONAL and loaded lazily
+const LEVEL_VALUES = Object.values(LOG_LEVELS);
+
 let discordSink = null;
 
 // ------------------------------------------------------------
-// LOG LEVEL DEFINITIONS (CANONICAL)
+// INTERNAL EMITTER
 // ------------------------------------------------------------
 
-const LEVELS = [
-    "DEBUG",
-    "INFO",
-    "SUCCESS",
-    "WARN",
-    "SECURITY",
-    "ERROR",
-    "CRITICAL",
-];
+function emit(level, message, meta = null) {
+    if (!LEVEL_VALUES.includes(level)) {
+        console.warn(`[LOGGER] Invalid log level used: ${level}`);
+        level = LOG_LEVELS.INFO;
+    }
 
-const currentLevelIndex =
-    LEVELS.indexOf((config.logLevel || "INFO").toUpperCase()) || 1;
+    const entry = {
+        timestamp: new Date().toISOString(),
+        level,
+        message,
+        meta,
+    };
 
-// ------------------------------------------------------------
-// INTERNAL HELPERS
-// ------------------------------------------------------------
+    // Console output (always)
+    const base = `[${entry.level}] ${entry.message}`;
+    console.log(meta ? `${base} ${JSON.stringify(meta)}` : base);
 
-function shouldLog(level) {
-    return LEVELS.indexOf(level) >= currentLevelIndex;
-}
-
-function getTimestamp() {
-    return new Date().toISOString();
-}
-
-function formatLine(level, message) {
-    return `[${getTimestamp()}] [${level.padEnd(8)}] ${message}`;
-}
-
-/**
- * Emits a structured log event to all registered sinks.
- */
-function emit(severity, message, metadata) {
-    if (!discordSink) return;
-
-    try {
-        discordSink.emit(
-            severity,
-            severity, // title (short + declarative)
-            message,
-            metadata,
-            "CORE",
-            config.environment
-        );
-    } catch (err) {
-        console.error(
-            "[Astral Relay] Discord log sink failure:",
-            err?.message || err
-        );
+    // Discord sink (optional)
+    if (typeof discordSink === "function") {
+        discordSink(entry);
     }
 }
 
 // ------------------------------------------------------------
-// PUBLIC LOGGING INTERFACE
+// PUBLIC API
 // ------------------------------------------------------------
 
-module.exports = {
-    /**
-     * Registers the Discord logging sink.
-     * Must be called once after client is ready.
-     */
-    attachDiscordLogger(discordLogger) {
-        discordSink = discordLogger;
+const logger = {
+    attachDiscordSink(fn) {
+        discordSink = fn;
     },
 
-    debug(message, metadata) {
-        if (!shouldLog("DEBUG")) return;
-        console.log(chalk.gray(formatLine("DEBUG", message)));
-        emit("DEBUG", message, metadata);
+    debug(msg, meta) {
+        emit(LOG_LEVELS.DEBUG, msg, meta);
     },
 
-    info(message, metadata) {
-        if (!shouldLog("INFO")) return;
-        console.log(chalk.blue(formatLine("INFO", message)));
-        emit("INFO", message, metadata);
+    info(msg, meta) {
+        emit(LOG_LEVELS.INFO, msg, meta);
     },
 
-    success(message, metadata) {
-        if (!shouldLog("SUCCESS")) return;
-        console.log(chalk.green(formatLine("SUCCESS", message)));
-        emit("SUCCESS", message, metadata);
+    success(msg, meta) {
+        emit(LOG_LEVELS.SUCCESS, msg, meta);
     },
 
-    warn(message, metadata) {
-        if (!shouldLog("WARN")) return;
-        console.log(chalk.yellow(formatLine("WARN", message)));
-        emit("WARN", message, metadata);
+    warn(msg, meta) {
+        emit(LOG_LEVELS.WARN, msg, meta);
     },
 
-    security(message, metadata) {
-        if (!shouldLog("SECURITY")) return;
-        console.log(chalk.keyword("orange")(formatLine("SECURITY", message)));
-        emit("SECURITY", message, metadata);
+    security(msg, meta) {
+        emit(LOG_LEVELS.SECURITY, msg, meta);
     },
 
-    error(message, metadata) {
-        if (!shouldLog("ERROR")) return;
-        console.log(chalk.red(formatLine("ERROR", message)));
-        emit("ERROR", message, metadata);
+    error(msg, meta) {
+        emit(LOG_LEVELS.ERROR, msg, meta);
     },
 
-    critical(message, metadata) {
-        console.log(chalk.bgRed.white(formatLine("CRITICAL", message)));
-        emit("CRITICAL", message, metadata);
+    critical(msg, meta) {
+        emit(LOG_LEVELS.CRITICAL, msg, meta);
     },
 };
+
+module.exports = logger;
