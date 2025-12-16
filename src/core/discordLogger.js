@@ -1,29 +1,30 @@
 // ============================================================
-// ASTRAL RELAY — DISCORD LOGGER SINK
-// Converts log entries into Discord embeds.
+// ASTRAL RELAY — DISCORD LOGGER
+// Pretty, branded, human-readable logging sink.
 // ============================================================
 
 const { EmbedBuilder } = require("discord.js");
 const LOG_LEVELS = require("./logLevel");
+const BRAND = require("./logBranding");
 
 let logChannel = null;
 
 // ------------------------------------------------------------
-// LEVEL → COLOUR MAP
+// LEVEL STYLING
 // ------------------------------------------------------------
 
-const LEVEL_COLOURS = {
-    [LOG_LEVELS.DEBUG]: 0x95a5a6,     // Grey
-    [LOG_LEVELS.INFO]: 0x5865f2,      // Blurple
-    [LOG_LEVELS.SUCCESS]: 0x2ecc71,   // Green
-    [LOG_LEVELS.WARN]: 0xf1c40f,      // Yellow
-    [LOG_LEVELS.SECURITY]: 0xe67e22,  // Orange
-    [LOG_LEVELS.ERROR]: 0xe74c3c,     // Red
-    [LOG_LEVELS.CRITICAL]: 0x8b0000,  // Dark Red
+const LEVEL_STYLE = {
+    [LOG_LEVELS.DEBUG]:   { icon: "🧪", color: 0x95a5a6, label: "DEBUG" },
+    [LOG_LEVELS.INFO]:    { icon: "ℹ️", color: 0x5865f2, label: "INFO" },
+    [LOG_LEVELS.SUCCESS]: { icon: "✅", color: 0x2ecc71, label: "SUCCESS" },
+    [LOG_LEVELS.WARN]:    { icon: "⚠️", color: 0xf1c40f, label: "WARNING" },
+    [LOG_LEVELS.SECURITY]:{ icon: "🔒", color: 0xe67e22, label: "SECURITY" },
+    [LOG_LEVELS.ERROR]:   { icon: "❌", color: 0xe74c3c, label: "ERROR" },
+    [LOG_LEVELS.CRITICAL]:{ icon: "🚨", color: 0x8b0000, label: "CRITICAL" },
 };
 
 // ------------------------------------------------------------
-// ATTACHMENT
+// CHANNEL ATTACHMENT
 // ------------------------------------------------------------
 
 function setLogChannel(channel) {
@@ -31,33 +32,62 @@ function setLogChannel(channel) {
 }
 
 // ------------------------------------------------------------
-// SINK HANDLER
+// META FORMATTER (NO JSON)
+// ------------------------------------------------------------
+
+function formatMeta(meta) {
+    if (!meta || typeof meta !== "object") return null;
+
+    const lines = [];
+
+    for (const [key, value] of Object.entries(meta)) {
+        if (value === undefined || value === null) continue;
+
+        const label =
+            key.charAt(0).toUpperCase() +
+            key.slice(1).replace(/([A-Z])/g, " $1");
+
+        lines.push(`• **${label}:** ${String(value)}`);
+    }
+
+    return lines.length ? lines.join("\n") : null;
+}
+
+// ------------------------------------------------------------
+// LOG HANDLER
 // ------------------------------------------------------------
 
 function handleLog(entry) {
     if (!logChannel) return;
 
+    const style = LEVEL_STYLE[entry.level] || LEVEL_STYLE[LOG_LEVELS.INFO];
+
     const embed = new EmbedBuilder()
-        .setTitle(entry.level)
+        .setAuthor({
+            name: BRAND.NAME,
+            iconURL: BRAND.LOGO_URL,
+        })
+        .setThumbnail(BRAND.LOGO_URL)
+        .setTitle(`${style.icon} ${style.label}`)
         .setDescription(entry.message)
-        .setColor(LEVEL_COLOURS[entry.level] || 0x5865f2)
-        .setTimestamp(new Date(entry.timestamp));
+        .setColor(style.color)
+        .setTimestamp(new Date(entry.timestamp))
+        .setFooter({ text: BRAND.FOOTER });
 
-        if (entry.meta) {
-            const json = JSON.stringify(entry.meta, null, 2);
-            const trimmed = json.length > 900
-                ? json.slice(0, 900) + "\n…truncated"
-                : json;
-
-            embed.addFields({
-                name: "Context",
-                value: `\`\`\`json\n${trimmed}\n\`\`\``,
-            });
-        }
-
+    const metaText = formatMeta(entry.meta);
+    if (metaText) {
+        embed.addFields({
+            name: "Details",
+            value: metaText.slice(0, 1024), // embed-safe
+        });
+    }
 
     logChannel.send({ embeds: [embed] }).catch(() => {});
 }
+
+// ------------------------------------------------------------
+// EXPORTS
+// ------------------------------------------------------------
 
 module.exports = {
     setLogChannel,

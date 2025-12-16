@@ -1,4 +1,6 @@
-// src/commands/system/system.js
+// ============================================================
+// ASTRAL RELAY — SYSTEM COMMANDS
+// ============================================================
 
 const { SlashCommandBuilder } = require("discord.js");
 const { collectHealth } = require("../../../../services/healthService");
@@ -7,9 +9,11 @@ const loadCommands = require("../../../../handlers/commands");
 const config = require("../../../../core/config");
 const logger = require("../../../../core/logger");
 const { createInfoEmbed } = require("../../../../core/embedStyles");
+const logBranding = require("../../../../core/logBranding");
 
 module.exports = {
     scope: "in_development",
+
     data: new SlashCommandBuilder()
         .setName("system")
         .setDescription("System administration commands")
@@ -27,9 +31,9 @@ module.exports = {
     async execute(interaction) {
         const sub = interaction.options.getSubcommand();
 
-        // ---------------------------------------------
+        // ------------------------------------------------------------
         // PERMISSION CHECK
-        // ---------------------------------------------
+        // ------------------------------------------------------------
         const isOwner = config.ownerIds.includes(interaction.user.id);
         const isAdmin = interaction.member.permissions.has("Administrator");
 
@@ -40,39 +44,47 @@ module.exports = {
             });
         }
 
-        // ---------------------------------------------
+        // ------------------------------------------------------------
         // /system health
-        // ---------------------------------------------
+        // ------------------------------------------------------------
         if (sub === "health") {
             const health = await collectHealth(interaction.client);
 
+            const lines = [
+                `**Environment:** \`${config.environment}\``,
+                `**Uptime:** ${Math.floor(health.uptime / 60)} min`,
+                `**Gateway Ping:** \`${health.gatewayPing}ms\``,
+                `**Guilds:** \`${health.guildCount}\``,
+                `**Modules Loaded:** \`${health.moduleCount}\``,
+                `**Commands Loaded:** \`${health.commandCount}\``,
+                "",
+                "**Memory Usage**",
+                `• Heap: ${(health.memory.heapUsed / 1024 / 1024).toFixed(1)} MB`,
+                `• RSS: ${(health.memory.rss / 1024 / 1024).toFixed(1)} MB`,
+                "",
+                `**Event Loop Delay:** \`${health.eventLoopDelay.toFixed(2)}ms\``,
+                "",
+                `**Database Response:** \`${health.db.responseTime ?? "ERR"}ms\``,
+                `**Database Locked:** \`${health.db.locked}\``,
+            ];
+
             const embed = createInfoEmbed(
                 "System Health Report",
-                [
-                    `**Environment:** \`${config.environment}\``,
-                    `**Uptime:** ${Math.floor(health.uptime / 60)} min`,
-                    `**Gateway Ping:** \`${health.gatewayPing}ms\``,
-                    `**Guilds:** \`${health.guildCount}\``,
-                    `**Modules Loaded:** \`${health.moduleCount}\``,
-                    `**Commands Loaded:** \`${health.commandCount}\``,
-                    "",
-                    `**Memory Usage:**`,
-                    `• Heap: ${(health.memory.heapUsed / 1024 / 1024).toFixed(1)} MB`,
-                    `• RSS: ${(health.memory.rss / 1024 / 1024).toFixed(1)} MB`,
-                    "",
-                    `**Event Loop Delay:** \`${health.eventLoopDelay.toFixed(2)}ms\``,
-                    "",
-                    `**Database Response:** \`${health.db.responseTime ?? "ERR"}ms\``,
-                    `**Database Locked:** \`${health.db.locked}\``,
-                ].join("\n")
+                lines.join("\n")
             );
 
-            return interaction.reply({ embeds: [embed], flags: 64 });
+            // Apply Astral Relay branding
+            logBranding.apply(embed);
+
+            return interaction.reply({
+                embeds: [embed],
+                flags: 64,
+            });
         }
 
-        // ---------------------------------------------
+        // ------------------------------------------------------------
         // /system refresh
-        // ---------------------------------------------
+        // ------------------------------------------------------------
         if (sub === "refresh") {
             await interaction.deferReply({ flags: 64 });
 
@@ -84,7 +96,9 @@ module.exports = {
                 environment: config.environment,
             });
 
-            return interaction.editReply("✅ Commands refreshed and redeployed.");
+            return interaction.editReply(
+                "✅ Commands refreshed and redeployed successfully."
+            );
         }
     },
 };
