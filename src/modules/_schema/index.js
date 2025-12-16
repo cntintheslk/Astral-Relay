@@ -1,8 +1,7 @@
 const fs = require("fs");
 const path = require("path");
-const db = require("../../core/database");
+const db = require("../../services/database");
 const logger = require("../../core/logger");
-const { log } = require("../../core/discordLogger");
 
 function loadSchemas() {
     const schemaDir = path.join(__dirname);
