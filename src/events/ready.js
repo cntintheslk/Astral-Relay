@@ -7,7 +7,7 @@ const logger = require("../core/logger");
 const discordLogger = require("../core/discordLogger");
 const config = require("../core/config");
 
-const { loadAllModules } = require("../core/moduleRegistry");
+const { loadAllModules } = require("../services/moduleRegistry");
 const loadCommands = require("../handlers/commands");
 const { deployCommands } = require("../handlers/commandDeployer");
 
