@@ -7,6 +7,7 @@
 const { REST, Routes } = require("discord.js");
 const config = require("../core/config");
 const logger = require("../core/logger");
+const { getValidatedCommands } = ("../core/configValidator")
 
 // ------------------------------------------------------------
 // INTERNAL HELPERS

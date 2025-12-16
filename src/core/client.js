@@ -44,10 +44,15 @@ const PARTIALS = [
  * This function performs no login or initialisation logic.
  */
 function createClient() {
-    return new Client({
+    const client = new Client({
         intents: INTENTS,
         partials: PARTIALS,
     });
+
+    client.commands = new Collection();
+
+    return client;
 }
+
 
 module.exports = createClient;
