@@ -20,9 +20,9 @@ const {
     setRegistrationRoles,
     setApprovalConfig,
     setApproverRoles
-} = require("../../../modules/registration/settingsStore");
+} = require("../../../../modules/registration/settingsStore");
 
-const db = require("../../../services/database");
+const db = require("../../../../services/database");
 
 // ----------------------------
 // PERMISSION CHECK

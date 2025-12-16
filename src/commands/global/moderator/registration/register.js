@@ -1,10 +1,10 @@
 const { SlashCommandBuilder } = require("discord.js");
-const { getSettings, getRegistrationConfig } = require("../../../modules/registration/settingsStore");
-const db = require("../../../services/database");
-const logger = require("../../../core/logger");
+const { getSettings, getRegistrationConfig } = require("../../../../modules/registration/settingsStore");
+const db = require("../../../../services/database");
+const logger = require("../../../../core/logger");
 
 // NEW IMPORT
-const { sendRegLog } = require("../../../core/registrationLogHelper");
+const { sendRegLog } = require("../../../../core/registrationLogHelper");
 
 module.exports = {
     scope: "global",

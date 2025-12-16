@@ -4,8 +4,8 @@ const {
     EmbedBuilder
 } = require("discord.js");
 
-const db = require("../../../services/database");
-const handleWelcome = require("../../../modules/welcome/welcomeHandler");
+const db = require("../../../../services/database");
+const handleWelcome = require("../../../../modules/welcome/welcomeHandler");
 
 
 module.exports = {

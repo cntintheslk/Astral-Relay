@@ -4,7 +4,7 @@ const {
     PermissionFlagsBits
 } = require("discord.js");
 
-const db = require("../../../services/database");
+const db = require("../../../../services/database");
 
 // ============================================================
 // DB HELPERS
