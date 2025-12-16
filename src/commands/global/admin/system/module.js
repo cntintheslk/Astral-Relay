@@ -8,9 +8,9 @@ const {
     reloadModule,
 } = require("../../../core/moduleRegistry");
 
-const config = require("../../../core/config");
-const logger = require("../../../core/logger");
-const { log } = require("../../../core/discordLogger");
+const config = require("../../../../core/config");
+const logger = require("../../../../core/logger");
+const { log } = require("../../../../core/discordLogger");
 const path = require("path");
 
 module.exports = {

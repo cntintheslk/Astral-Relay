@@ -4,8 +4,8 @@
 // ============================================================
 
 const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField } = require("discord.js");
-const { collectHealth } = require("../../../services/healthService");
-const config = require("../../../core/config");
+const { collectHealth } = require("../../../../services/healthService");
+const config = require("../../../../core/config");
 
 // ------------------------------------------------------------
 // STATUS → COLOUR MAP

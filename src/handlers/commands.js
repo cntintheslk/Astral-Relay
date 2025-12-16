@@ -1,54 +1,66 @@
 const fs = require("fs");
 const path = require("path");
+const config = require("../core/config");
 
 function loadCommands(client) {
     client.commands = new Map();
 
     const basePath = path.join(__dirname, "../commands");
-    const categories = fs.readdirSync(basePath); // ["global", "dev"]
+    const isDev = config.environment === "development";
 
-    for (const category of categories) {
-        const categoryPath = path.join(basePath, category);
+    /**
+     * Recursively load .js command files from a directory
+     */
+    function loadDirectory(dirPath, scope) {
+        const entries = fs.readdirSync(dirPath);
 
-        if (!fs.lstatSync(categoryPath).isDirectory()) continue;
+        for (const entry of entries) {
+            const fullPath = path.join(dirPath, entry);
+            const stat = fs.lstatSync(fullPath);
 
-        // Recursively load commands from subfolders
-        const items = fs.readdirSync(categoryPath);
-
-        for (const item of items) {
-            const itemPath = path.join(categoryPath, item);
-            const stat = fs.lstatSync(itemPath);
-
-            // CASE 1: Command file directly inside /global or /dev
-            if (stat.isFile() && item.endsWith(".js")) {
-                const command = require(itemPath);
-                if (!command.data) continue;
-
-                command.category = category;
-                client.commands.set(command.data.name, command);
-            }
-
-            // CASE 2: Command file inside a subfolder
             if (stat.isDirectory()) {
-                const subfiles = fs.readdirSync(itemPath).filter(f => f.endsWith(".js"));
-
-                for (const file of subfiles) {
-                    const commandPath = path.join(itemPath, file);
-                    const command = require(commandPath);
-
-                    if (!command.data) {
-                        console.warn(`Skipping ${file} (missing data export)`);
-                        continue;
-                    }
-
-                    command.category = category; // global or dev
-                    client.commands.set(command.data.name, command);
-                }
+                loadDirectory(fullPath, scope);
+                continue;
             }
+
+            if (!entry.endsWith(".js")) continue;
+
+            const command = require(fullPath);
+
+            if (!command?.data?.name || typeof command.execute !== "function") {
+                console.warn(`Skipping ${fullPath} (invalid command export)`);
+                continue;
+            }
+
+            command.scope = scope; // global | in_development
+            client.commands.set(command.data.name, command);
         }
     }
 
-    console.log(`Loaded ${client.commands.size} commands.`);
+    // --------------------------------------------------------
+    // GLOBAL COMMANDS (ALWAYS)
+    // --------------------------------------------------------
+
+    const globalPath = path.join(basePath, "global");
+    if (fs.existsSync(globalPath)) {
+        loadDirectory(globalPath, "global");
+    }
+
+    // --------------------------------------------------------
+    // IN-DEVELOPMENT COMMANDS (DEV ONLY)
+    // --------------------------------------------------------
+
+    if (isDev) {
+        const devPath = path.join(basePath, "in_development");
+        if (fs.existsSync(devPath)) {
+            loadDirectory(devPath, "in_development");
+        }
+    }
+
+    console.log(
+        `[Commands] Loaded ${client.commands.size} commands ` +
+        `(env=${config.environment})`
+    );
 }
 
 module.exports = loadCommands;

@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require("discord.js");
 const db = require("../../../core/database");
-const { getSettings } = require("../../../modules/registration/settingsStore");
-const { createInfoEmbed } = require("../../../core/embedStyles");
+const { getSettings } = require("../../../../modules/registration/settingsStore");
+const { createInfoEmbed } = require("../../../../core/embedStyles");
 
 module.exports = {
     data: new SlashCommandBuilder()
