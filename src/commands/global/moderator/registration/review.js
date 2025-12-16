@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require("discord.js");
-const db = require("../../../services/database");
+const db = require("../../../../services/database");
 const { getSettings } = require("../../../../modules/registration/settingsStore");
 const { createInfoEmbed } = require("../../../../core/embedStyles");
 
