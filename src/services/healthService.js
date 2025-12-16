@@ -1,36 +1,32 @@
 // ============================================================
 // ASTRAL RELAY — HEALTH SERVICE
-// Collects and evaluates runtime health signals.
+// Collects runtime, database, and system telemetry.
 // ============================================================
 
+const os = require("os");
 const { performance } = require("perf_hooks");
 const db = require("./database");
 const moduleRegistry = require("./moduleRegistry");
-const config = require("../core/config")
+const config = require("../core/config");
 
 // ------------------------------------------------------------
 // INTERNAL MEASUREMENTS
 // ------------------------------------------------------------
 
 async function measureEventLoopDelay() {
-    try {
+    return new Promise(resolve => {
         const start = performance.now();
-
-        return await new Promise(resolve => {
-            setTimeout(() => {
-                resolve(performance.now() - start - 10); // expected ~0–2ms
-            }, 10);
-        });
-    } catch {
-        return null;
-    }
+        setTimeout(() => {
+            resolve(performance.now() - start - 10);
+        }, 10);
+    });
 }
 
 async function measureDbStatus() {
     const start = performance.now();
 
     try {
-        await db.get("SELECT 1"); // heartbeat
+        db.prepare("SELECT 1").get();
         const duration = performance.now() - start;
 
         return {
@@ -38,7 +34,6 @@ async function measureDbStatus() {
             responseTime: duration,
             locked: duration > 100,
         };
-
     } catch (err) {
         return {
             ok: false,
@@ -49,30 +44,11 @@ async function measureDbStatus() {
     }
 }
 
-// ------------------------------------------------------------
-// VERDICT LOGIC
-// ------------------------------------------------------------
-
-function deriveHealthStatus({ db, eventLoopDelay }) {
-    const issues = [];
-    let status = "OPERATIONAL";
-
-    // --- Database ---
-    if (!db.ok) {
-        status = "CRITICAL";
-        issues.push("Database unreachable");
-    } else if (db.locked) {
-        status = "DEGRADED";
-        issues.push("Database responding slowly or locked");
-    }
-
-    // --- Event Loop ---
-    if (eventLoopDelay !== null && eventLoopDelay > 50) {
-        if (status !== "CRITICAL") status = "DEGRADED";
-        issues.push("Event loop delay elevated");
-    }
-
-    return { status, issues };
+function determineStatus({ db, eventLoopDelay, gatewayPing }) {
+    if (!db.ok) return "CRITICAL";
+    if (eventLoopDelay > 50) return "DEGRADED";
+    if (gatewayPing > 250) return "DEGRADED";
+    return "OPERATIONAL";
 }
 
 // ------------------------------------------------------------
@@ -80,61 +56,36 @@ function deriveHealthStatus({ db, eventLoopDelay }) {
 // ------------------------------------------------------------
 
 async function collectHealth(client) {
-    try {
-        const memory = process.memoryUsage();
+    const memory = process.memoryUsage();
+    const dbStatus = await measureDbStatus();
+    const eventLoopDelay = await measureEventLoopDelay();
 
-        const [dbStatus, eventLoopDelay] = await Promise.all([
-            measureDbStatus(),
-            measureEventLoopDelay(),
-        ]);
+    const status = determineStatus({
+        db: dbStatus,
+        eventLoopDelay,
+        gatewayPing: client.ws.ping,
+    });
 
-        const verdict = deriveHealthStatus({
-            db: dbStatus,
-            eventLoopDelay,
-        });
+    return {
+        status,
+        uptime: process.uptime(),
+        environment: config.environment,
+        nodeVersion: process.version,
 
-        return {
-            // --- Verdict ---
-            status: verdict.status,
-            issues: verdict.issues,
+        guildCount: client.guilds.cache.size,
+        moduleCount: moduleRegistry.listModules().length,
+        commandCount: client.commands.size,
+        gatewayPing: client.ws.ping,
 
-            // --- Runtime ---
-            uptime: process.uptime(),
-            nodeVersion: process.version,
-            environment: config.environment,
+        memory: {
+            rss: memory.rss,
+            heapUsed: memory.heapUsed,
+            heapTotal: memory.heapTotal,
+        },
 
-            // --- Discord ---
-            guildCount: client.guilds.cache.size,
-            commandCount: client.commands.size,
-            moduleCount: moduleRegistry.listModules().length,
-            gatewayPing: client.ws.ping,
-
-            // --- Memory ---
-            memory: {
-                rss: memory.rss,
-                heapUsed: memory.heapUsed,
-                heapTotal: memory.heapTotal,
-            },
-
-            // --- Performance ---
-            eventLoopDelay,
-
-            // --- Database ---
-            db: dbStatus,
-        };
-
-    } catch (err) {
-        // Absolute fallback — health command must never crash
-        return {
-            status: "CRITICAL",
-            issues: ["Health collection failed"],
-
-            uptime: process.uptime(),
-            environment: process.env.NODE_ENV || "production",
-
-            error: err?.stack || String(err),
-        };
-    }
+        db: dbStatus,
+        eventLoopDelay,
+    };
 }
 
 module.exports = {

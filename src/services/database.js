@@ -2,7 +2,7 @@
 
 const Database = require("better-sqlite3");
 const logger = require("../core/logger");
-const { log } = require("./discordLogger");
+const { log } = require("../core/discordLogger");
 
 // Render persistent disk lives at /data/
 const DB_PATH = "/data/astral_relay.sqlite";

@@ -8,7 +8,7 @@ const {
 
 const crypto = require("crypto");
 const db = require("../../../core/database");
-const { dryRunSummary, runAutoPurge } = require("../../../modules/autoPurge/engine");
+const { dryRunSummary, runAutoPurge } = require("../../../../modules/autoPurge/engine");
 
 
 // ===== Helpers =====
