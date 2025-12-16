@@ -43,12 +43,18 @@ function handleLog(entry) {
         .setColor(LEVEL_COLOURS[entry.level] || 0x5865f2)
         .setTimestamp(new Date(entry.timestamp));
 
-    if (entry.meta) {
-        embed.addFields({
-            name: "Context",
-            value: `\`\`\`json\n${JSON.stringify(entry.meta, null, 2)}\n\`\`\``,
-        });
-    }
+        if (entry.meta) {
+            const json = JSON.stringify(entry.meta, null, 2);
+            const trimmed = json.length > 900
+                ? json.slice(0, 900) + "\n…truncated"
+                : json;
+
+            embed.addFields({
+                name: "Context",
+                value: `\`\`\`json\n${trimmed}\n\`\`\``,
+            });
+        }
+
 
     logChannel.send({ embeds: [embed] }).catch(() => {});
 }

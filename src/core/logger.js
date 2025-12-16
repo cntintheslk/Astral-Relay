@@ -1,13 +1,10 @@
 // ============================================================
 // ASTRAL RELAY — CORE LOGGER
-// Centralised structured logging with optional sinks.
+// Centralised structured logging (transport-agnostic)
 // ============================================================
 
 const LOG_LEVELS = require("./logLevel");
-
 const LEVEL_VALUES = Object.values(LOG_LEVELS);
-
-let discordSink = null;
 
 console.log(">>> LOGGER FILE LOADED:", __filename);
 
@@ -28,25 +25,15 @@ function emit(level, message, meta = null) {
         meta,
     };
 
-    // Console output (always)
     const base = `[${entry.level}] ${entry.message}`;
     console.log(meta ? `${base} ${JSON.stringify(meta)}` : base);
-
-    // Discord sink (optional)
-    if (typeof discordSink === "function") {
-        discordSink(entry);
-    }
 }
 
 // ------------------------------------------------------------
 // PUBLIC API
 // ------------------------------------------------------------
 
-const logger = {
-    attachDiscordSink(fn) {
-        discordSink = fn;
-    },
-
+module.exports = {
     debug(msg, meta) {
         emit(LOG_LEVELS.DEBUG, msg, meta);
     },
@@ -75,5 +62,3 @@ const logger = {
         emit(LOG_LEVELS.CRITICAL, msg, meta);
     },
 };
-
-module.exports = logger;
