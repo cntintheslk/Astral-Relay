@@ -6,6 +6,8 @@
 const LOG_LEVELS = require("./logLevel");
 const LEVEL_VALUES = Object.values(LOG_LEVELS);
 
+let discordSink = null;
+
 console.log(">>> LOGGER FILE LOADED:", __filename);
 
 // ------------------------------------------------------------
@@ -25,8 +27,14 @@ function emit(level, message, meta = null) {
         meta,
     };
 
+    // Console output (always)
     const base = `[${entry.level}] ${entry.message}`;
     console.log(meta ? `${base} ${JSON.stringify(meta)}` : base);
+
+    // Optional Discord sink
+    if (typeof discordSink === "function") {
+        discordSink(entry);
+    }
 }
 
 // ------------------------------------------------------------
@@ -34,6 +42,16 @@ function emit(level, message, meta = null) {
 // ------------------------------------------------------------
 
 module.exports = {
+    // -----------------------------
+    // Sink attachment
+    // -----------------------------
+    attachDiscordSink(fn) {
+        discordSink = fn;
+    },
+
+    // -----------------------------
+    // Log methods
+    // -----------------------------
     debug(msg, meta) {
         emit(LOG_LEVELS.DEBUG, msg, meta);
     },
