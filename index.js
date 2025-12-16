@@ -9,7 +9,7 @@ require("./src/services/database");
 const loadSchemas = require("./src/modules/_schema");
 const validateConfig = require("./src/core/configValidator");
 const config = require("./src/core/config");
-
+const loadCommands = require("./src/handlers/commands")
 const express = require("express");
 const app = express();
 
@@ -49,6 +49,11 @@ loadSchemas();
 
 const client = createClient();
 
+// ============================================================
+// DISCORD COMMAND LOADER
+// ============================================================
+
+loadCommands(client);
 // ============================================================
 // DISCORD EVENT HANDLERS
 // ============================================================
