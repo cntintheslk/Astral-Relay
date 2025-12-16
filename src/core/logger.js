@@ -9,6 +9,8 @@ const LEVEL_VALUES = Object.values(LOG_LEVELS);
 
 let discordSink = null;
 
+console.log(">>> LOGGER FILE LOADED:", __filename);
+
 // ------------------------------------------------------------
 // INTERNAL EMITTER
 // ------------------------------------------------------------
