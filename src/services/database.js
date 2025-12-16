@@ -1,7 +1,7 @@
 // src/core/database.js
 
 const Database = require("better-sqlite3");
-const logger = require("./logger");
+const logger = require("../core/logger");
 const { log } = require("./discordLogger");
 
 // Render persistent disk lives at /data/
