@@ -2,7 +2,7 @@
 const createClient = require("./src/core/client");
 const loadEvents = require("./src/handlers/events");
 const logger = require("./src/core/logger");
-require("./src/core/database");
+require("./src/services/database");
 const { loadSchemas } = require("./src/modules/_schema");
 const validateConfig = require("./src/core/configValidator");
 const config = require("./src/core/config");
