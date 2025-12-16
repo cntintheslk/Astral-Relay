@@ -66,17 +66,18 @@ function validateConfig(config) {
     // ACCESS CONTROL
     // --------------------------------------------------------
 
-    if (!config.ownerIds.length) {
+    if (!config.hasOwners) {
         warnings.push(
             "OWNER_IDS is empty — protected commands will be inaccessible."
         );
     } else {
         for (const id of config.ownerIds) {
             if (!isSnowflake(id)) {
-                warnings.push(`OWNER_ID is invalid: ${id}`);
+                warnings.push(`OWNER_IDS is invalid: ${id}`);
             }
         }
     }
+
 
     // --------------------------------------------------------
     // REPORTING

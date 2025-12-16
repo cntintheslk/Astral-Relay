@@ -1,21 +1,31 @@
 // ============================================================
 // ASTRAL RELAY — RUNTIME CONFIGURATION
 // Centralised access to all environment-driven configuration.
-// This file is the single source of truth for process.env usage.
+// Single source of truth for process.env usage.
 // ============================================================
 
 // ------------------------------------------------------------
 // ENVIRONMENT RESOLUTION
 // ------------------------------------------------------------
-// ENVIRONMENT is authoritative (development | staging | production)
-// NODE_ENV is treated as a fallback only.
+
 const ENVIRONMENT =
     process.env.ENVIRONMENT ||
     process.env.NODE_ENV ||
     "production";
 
 // ------------------------------------------------------------
-// EXPORTED CONFIG
+// ACCESS CONTROL (PRE-COMPUTED)
+// ------------------------------------------------------------
+
+const ownerIds = process.env.OWNER_IDS
+    ? process.env.OWNER_IDS
+        .split(",")
+        .map(id => id.trim())
+        .filter(Boolean)
+    : [];
+
+// ------------------------------------------------------------
+// EXPORT
 // ------------------------------------------------------------
 
 module.exports = {
@@ -40,7 +50,6 @@ module.exports = {
     // --------------------------------------------------------
     // ACCESS CONTROL
     // --------------------------------------------------------
-    ownerIds: process.env.OWNER_IDS
-        ? process.env.OWNER_IDS.split(",").map(id => id.trim())
-        : [],
+    ownerIds,
+    hasOwners: ownerIds.length > 0,
 };
