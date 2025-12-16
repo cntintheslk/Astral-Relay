@@ -1,7 +1,7 @@
 // ============================================================
 // ASTRAL RELAY — EMBED STYLES
-// Defines the canonical visual language for all Discord embeds.
-// No other file should construct EmbedBuilder directly.
+// Canonical, defensive embed construction.
+// All embeds MUST flow through this file.
 // ============================================================
 
 const { EmbedBuilder } = require("discord.js");
@@ -9,36 +9,45 @@ const { EmbedBuilder } = require("discord.js");
 // ------------------------------------------------------------
 // SEVERITY → COLOUR MAPPING (CANONICAL)
 // ------------------------------------------------------------
+
 const SEVERITY_COLORS = {
-    INFO: 0x3498db,       // Blue — informational telemetry
-    SUCCESS: 0x2ecc71,    // Green — confirmed actions
-    WARN: 0xf1c40f,       // Yellow — non-fatal issues
-    SECURITY: 0xe67e22,   // Orange — guarded / sensitive actions
-    ERROR: 0xe74c3c,      // Red — failures
-    CRITICAL: 0x2c2f33,   // Dark — system integrity events
+    INFO: 0x3498db,
+    SUCCESS: 0x2ecc71,
+    WARN: 0xf1c40f,
+    SECURITY: 0xe67e22,
+    ERROR: 0xe74c3c,
+    CRITICAL: 0x2c2f33,
 };
 
 // ------------------------------------------------------------
 // BRANDING
 // ------------------------------------------------------------
+
 const BOT_NAME = "Astral Relay";
 const BOT_LOGO =
     "https://cdn.discordapp.com/icons/1444904297358688320/a_d05db8a486d3c803566d67525914c901.gif?size=256";
 
 // ------------------------------------------------------------
-// BASE EMBED CONSTRUCTOR
+// INTERNAL SANITISERS (DISCORD-SAFE)
+// ------------------------------------------------------------
+
+function safeString(value, fallback = "") {
+    if (typeof value !== "string") return fallback;
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : fallback;
+}
+
+function truncate(value, max) {
+    return value.length > max ? value.slice(0, max - 3) + "..." : value;
+}
+
+// ------------------------------------------------------------
+// BASE EMBED CONSTRUCTOR (DEFENSIVE)
 // ------------------------------------------------------------
 
 /**
  * Creates a canonical Astral Relay embed.
- * All embeds — logs, replies, admin messages — flow through here.
- *
- * @param {Object} options
- * @param {string} options.severity   One of the defined severity levels
- * @param {string} options.title      Short, declarative title
- * @param {string} options.description Human-readable explanation
- * @param {string} [options.source]   Optional subsystem identifier
- * @param {string} [options.environment] DEV / PROD tag
+ * This function is fully defensive against invalid input.
  */
 function createBaseEmbed({
     severity = "INFO",
@@ -49,14 +58,40 @@ function createBaseEmbed({
 }) {
     const color = SEVERITY_COLORS[severity] || SEVERITY_COLORS.INFO;
 
+    // -----------------------------
+    // TITLE (REQUIRED BY DISCORD)
+    // -----------------------------
+    const safeTitle = truncate(
+        safeString(title, BOT_NAME),
+        256
+    );
+
+    // -----------------------------
+    // DESCRIPTION (OPTIONAL)
+    // -----------------------------
+    const safeDescription = truncate(
+        safeString(description, " "),
+        4096
+    );
+
+    // -----------------------------
+    // FOOTER
+    // -----------------------------
     const footerParts = [];
+
     if (source) footerParts.push(source);
     if (environment) footerParts.push(environment.toUpperCase());
 
-    return new EmbedBuilder()
+    const footerText = footerParts.length
+        ? `${BOT_NAME} — ${footerParts.join(" | ")}`
+        : `${BOT_NAME} — Command & Control`;
+
+    // -----------------------------
+    // BUILD EMBED
+    // -----------------------------
+    const embed = new EmbedBuilder()
         .setColor(color)
-        .setTitle(title)
-        .setDescription(description)
+        .setTitle(safeTitle)
         .setAuthor({
             name: BOT_NAME,
             iconURL: BOT_LOGO,
@@ -64,11 +99,16 @@ function createBaseEmbed({
         .setThumbnail(BOT_LOGO)
         .setTimestamp()
         .setFooter({
-            text: footerParts.length
-                ? `${BOT_NAME} — ${footerParts.join(" | ")}`
-                : `${BOT_NAME} — Command & Control`,
+            text: footerText,
             iconURL: BOT_LOGO,
         });
+
+    // Description is optional — only set if meaningful
+    if (safeDescription.trim().length > 0) {
+        embed.setDescription(safeDescription);
+    }
+
+    return embed;
 }
 
 // ------------------------------------------------------------
