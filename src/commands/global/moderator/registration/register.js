@@ -3,9 +3,6 @@ const { getSettings, getRegistrationConfig } = require("../../../../modules/regi
 const db = require("../../../../services/database");
 const logger = require("../../../../core/logger");
 
-// NEW IMPORT
-const { sendRegLog } = require("../../../../services/registrationLogService");
-
 module.exports = {
     scope: "global",
     data: new SlashCommandBuilder()
@@ -84,12 +81,13 @@ module.exports = {
         if (needsApproval) {
             insertStmt.run(guildId, userId, ign, rank, "pending", timestamp);
 
-            await sendRegLog(
-                guild,
-                "INFO",
-                "Registration Pending",
-                `User: <@${userId}>\nRank: **${rank}**\nIGN: \`${ign}\`\nStatus: \`pending\``
-            );
+        logger.security("Registration pending approval.", {
+            user: interaction.user.tag,
+            userId,
+            guild: guild.name,
+            rank,
+            ign,
+        });
 
             return interaction.reply({
                 content:
@@ -128,12 +126,13 @@ module.exports = {
             }
         }
 
-        await sendRegLog(
-            guild,
-            "SUCCESS",
-            "Registration Auto-Approved",
-            `User: <@${userId}>\nRank: **${rank}**\nIGN: \`${ign}\`\nStatus: \`auto-approved\``
-        );
+        logger.success("Registration auto-approved.", {
+            user: interaction.user.tag,
+            userId,
+            guild: guild.name,
+            rank,
+            ign,
+        });
 
         return interaction.reply({
             content: `✅ You have been registered as **${rank}**.\nYour nickname is now \`${desiredNick}\`.`,
